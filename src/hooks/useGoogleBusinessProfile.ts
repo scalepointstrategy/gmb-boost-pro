@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { googleBusinessProfileService, BusinessAccount, BusinessLocation } from '@/lib/googleBusinessProfile';
+import { BusinessAccount, BusinessLocation, googleBusinessProfileService } from '@/lib/googleBusinessProfile';
 import { useToast } from '@/hooks/use-toast';
 
 interface UseGoogleBusinessProfileReturn {
@@ -14,7 +14,6 @@ interface UseGoogleBusinessProfileReturn {
   selectAccount: (account: BusinessAccount) => void;
   selectLocation: (location: BusinessLocation) => void;
   refreshAccounts: () => Promise<void>;
-  handleOAuthCallback: (code: string) => Promise<void>;
 }
 
 export const useGoogleBusinessProfile = (): UseGoogleBusinessProfileReturn => {
@@ -26,32 +25,8 @@ export const useGoogleBusinessProfile = (): UseGoogleBusinessProfileReturn => {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Initialize and check existing connection
-  useEffect(() => {
-    const initializeConnection = async () => {
-      setIsLoading(true);
-      try {
-        const hasValidTokens = await googleBusinessProfileService.loadStoredTokens();
-        setIsConnected(hasValidTokens);
-        
-        if (hasValidTokens) {
-          await loadBusinessAccounts();
-        }
-      } catch (error) {
-        console.error('Error initializing Google Business Profile connection:', error);
-        setError('Failed to initialize connection');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    initializeConnection();
-  }, []);
-
   // Load business accounts
   const loadBusinessAccounts = useCallback(async () => {
-    if (!isConnected) return;
-    
     try {
       setIsLoading(true);
       const businessAccounts = await googleBusinessProfileService.getBusinessAccounts();
@@ -79,56 +54,90 @@ export const useGoogleBusinessProfile = (): UseGoogleBusinessProfileReturn => {
     } finally {
       setIsLoading(false);
     }
-  }, [isConnected, toast]);
+  }, [toast]);
 
-  // Connect to Google Business Profile
+  // Initialize and check existing connection
+  useEffect(() => {
+    const initializeConnection = async () => {
+      setIsLoading(true);
+      console.log('🔍 DEBUGGING: Initializing Google Business Profile connection...');
+      
+      try {
+        const hasValidTokens = await googleBusinessProfileService.loadStoredTokens();
+        console.log('🔍 DEBUGGING: Has valid tokens?', hasValidTokens);
+        console.log('🔍 DEBUGGING: Service isConnected?', googleBusinessProfileService.isConnected());
+        console.log('🔍 DEBUGGING: LocalStorage tokens:', localStorage.getItem('google_business_tokens'));
+        console.log('🔍 DEBUGGING: LocalStorage connected flag:', localStorage.getItem('google_business_connected'));
+        
+        setIsConnected(hasValidTokens);
+        
+        if (hasValidTokens) {
+          console.log('🔍 DEBUGGING: Loading business accounts...');
+          await loadBusinessAccounts();
+        } else {
+          console.log('🔍 DEBUGGING: No valid tokens, skipping account load');
+        }
+      } catch (error) {
+        console.error('❌ DEBUGGING: Error initializing Google Business Profile connection:', error);
+        setError('Failed to initialize connection');
+      } finally {
+        setIsLoading(false);
+        console.log('🔍 DEBUGGING: Initialization complete. Final state - isConnected:', isConnected);
+      }
+    };
+
+    // Listen for connection events from OAuth callback
+    const handleConnectionEvent = async (event: CustomEvent) => {
+      console.log('Google Business Profile connection event received:', event.detail);
+      setIsConnected(true);
+      await loadBusinessAccounts();
+      toast({
+        title: "Connection successful!",
+        description: "Loading your business profiles...",
+      });
+    };
+
+    window.addEventListener('googleBusinessProfileConnected', handleConnectionEvent as EventListener);
+    
+    initializeConnection();
+
+    return () => {
+      window.removeEventListener('googleBusinessProfileConnected', handleConnectionEvent as EventListener);
+    };
+  }, [toast, loadBusinessAccounts]);
+
+  // Connect to Google Business Profile (frontend-only)
   const connectGoogleBusiness = useCallback(async () => {
     try {
-      const authUrl = await googleBusinessProfileService.generateAuthUrl();
+      setIsLoading(true);
+      console.log('🔄 Starting Google Business Profile connection...');
       
-      // Redirect to auth URL instead of popup (since backend handles the callback)
-      window.location.href = authUrl;
+      await googleBusinessProfileService.connectGoogleBusiness();
+      setIsConnected(true);
+      console.log('✅ OAuth connection successful!');
       
+      // Load business accounts immediately after connection
+      console.log('📊 Loading business accounts...');
+      await loadBusinessAccounts();
+      console.log('✅ Business accounts loaded successfully!');
+      
+      toast({
+        title: "Connected successfully!",
+        description: "Your Google Business Profile has been connected and data loaded.",
+      });
     } catch (error) {
-      console.error('Error connecting to Google Business Profile:', error);
+      console.error('❌ Error connecting to Google Business Profile:', error);
       setError('Failed to connect');
       toast({
         title: "Connection failed",
         description: "Failed to connect to Google Business Profile. Please try again.",
         variant: "destructive",
       });
-    }
-  }, [loadBusinessAccounts, toast]);
-
-  // Handle OAuth callback
-  const handleOAuthCallback = useCallback(async (code: string) => {
-    try {
-      setIsLoading(true);
-      await googleBusinessProfileService.handleOAuthCallback(code);
-      setIsConnected(true);
-      await loadBusinessAccounts();
-      
-      toast({
-        title: "Connected successfully!",
-        description: "Your Google Business Profile has been connected.",
-      });
-      
-      // Close the popup window if it exists
-      if (window.opener) {
-        window.close();
-      }
-    } catch (error) {
-      console.error('Error handling OAuth callback:', error);
-      setError('Failed to complete connection');
-      toast({
-        title: "Connection failed",
-        description: "Failed to complete the connection. Please try again.",
-        variant: "destructive",
-      });
     } finally {
       setIsLoading(false);
     }
   }, [loadBusinessAccounts, toast]);
+
 
   // Disconnect from Google Business Profile
   const disconnectGoogleBusiness = useCallback(async () => {
@@ -187,7 +196,6 @@ export const useGoogleBusinessProfile = (): UseGoogleBusinessProfileReturn => {
     selectAccount,
     selectLocation,
     refreshAccounts,
-    handleOAuthCallback,
   };
 };
 

@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import CreatePostModal from "@/components/ProfileDetails/CreatePostModal";
-import { useGoogleBusinessProfileContext } from "@/contexts/GoogleBusinessProfileContext";
+import { useGoogleBusinessProfile } from "@/hooks/useGoogleBusinessProfile";
 import { googleBusinessProfileService } from "@/lib/googleBusinessProfile";
 
 interface Post {
@@ -45,7 +45,7 @@ const Posts = () => {
     accounts, 
     isConnected, 
     isLoading: googleLoading 
-  } = useGoogleBusinessProfileContext();
+  } = useGoogleBusinessProfile();
 
   useEffect(() => {
     // Real-time posts from Google Business Profile API
@@ -128,7 +128,7 @@ const Posts = () => {
     account.locations.map(location => ({
       id: location.locationId,
       name: location.displayName,
-      accountName: account.displayName
+      accountName: account.accountName
     }))
   );
 
@@ -164,21 +164,42 @@ const Posts = () => {
       
       console.log('Post created successfully:', createdPost);
       
-      // Add the new post to the list
+      // Determine the actual post status from Google
+      const postStatus = createdPost.status || createdPost.state || 'pending';
+      const realTime = createdPost.realTime || false;
+      
+      // Add the new post to the list with real status
       const newPost: Post = {
         id: createdPost.id,
         profileId: selectedLocation.locationId,
         profileName: selectedLocation.displayName,
         content: createdPost.summary || '',
-        status: 'published',
-        postedAt: createdPost.createTime
+        status: postStatus === 'PENDING' || postStatus === 'UNDER_REVIEW' ? 'scheduled' : 
+                postStatus === 'LIVE' ? 'published' : 'draft',
+        postedAt: createdPost.createTime,
+        scheduledAt: postStatus === 'PENDING' ? createdPost.createTime : undefined
       };
       
       setPosts(prev => [newPost, ...prev]);
       setShowCreateModal(false);
       
-      // Show success message
-      alert('🎉 Post published successfully to Google Business Profile! \n\nYour post is now live and visible to customers on Google.');
+      // Show appropriate success message based on real status
+      if (realTime) {
+        if (postStatus === 'PENDING' || postStatus === 'UNDER_REVIEW') {
+          alert(`🎉 Post successfully submitted to Google Business Profile!\n\n📋 Status: ${postStatus}\n\n⏳ Your post is now under Google's review and will appear on your Business Profile once approved. This usually takes a few minutes to a few hours.`);
+        } else if (postStatus === 'LIVE') {
+          alert('🎉 Post published successfully to Google Business Profile! \n\n✅ Your post is now LIVE and visible to customers on Google!');
+        } else {
+          alert(`🎉 Post submitted to Google Business Profile!\n\n📋 Status: ${postStatus}\n\n${createdPost.message || 'Your post has been processed by Google.'}`);
+        }
+      } else {
+        // Handle simulated posts and API restrictions
+        if (postStatus === 'SIMULATED') {
+          alert(`⚠️ Google Business Profile Posts API Restriction\n\n🔒 Google has restricted access to the Posts API. Your post was saved locally but not submitted to Google Business Profile.\n\n💡 To post to your Google Business Profile:\n• Use Google Business Profile Manager directly\n• Or contact Google for API access approval\n\n📝 Post content: "${postData.content}"`);
+        } else {
+          alert(`🎉 Post created successfully! \n\n⚠️ Note: This was processed locally due to API restrictions.\n\n${createdPost.warning || ''}`);
+        }
+      }
     } catch (error) {
       console.error('Error creating post:', error);
       // Show error message to user

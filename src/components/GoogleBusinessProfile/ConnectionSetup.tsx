@@ -13,7 +13,7 @@ import {
   RefreshCw,
   Unlink
 } from 'lucide-react';
-import { useGoogleBusinessProfileContext } from '@/contexts/GoogleBusinessProfileContext';
+import { useGoogleBusinessProfile } from '@/hooks/useGoogleBusinessProfile';
 import { BusinessAccount, BusinessLocation } from '@/lib/googleBusinessProfile';
 
 const ConnectionSetup: React.FC = () => {
@@ -29,7 +29,7 @@ const ConnectionSetup: React.FC = () => {
     selectAccount,
     selectLocation,
     refreshAccounts,
-  } = useGoogleBusinessProfileContext();
+  } = useGoogleBusinessProfile();
 
   if (isLoading) {
     return (
@@ -76,7 +76,10 @@ const ConnectionSetup: React.FC = () => {
           )}
           
           <Button 
-            onClick={connectGoogleBusiness}
+            onClick={() => {
+              console.log('🔴 DEBUGGING: Connect button clicked!');
+              connectGoogleBusiness();
+            }}
             className="w-full"
             size="lg"
           >

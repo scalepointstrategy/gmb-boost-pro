@@ -14,7 +14,7 @@ import Posts from "./pages/Posts";
 import Reviews from "./pages/Reviews";
 import Settings from "./pages/Settings";
 import { AuthProvider } from "./contexts/AuthContext";
-import { GoogleBusinessProfileProvider } from "./contexts/GoogleBusinessProfileContext";
+
 import ProtectedRoute from "./components/ProtectedRoute";
 import AuthRedirect from "./components/AuthRedirect";
 import GoogleOAuthCallback from "./pages/GoogleOAuthCallback";
@@ -47,9 +47,7 @@ const App = () => (
             {/* Protected Dashboard Routes */}
             <Route path="/dashboard" element={
               <ProtectedRoute>
-                <GoogleBusinessProfileProvider>
-                  <DashboardLayout />
-                </GoogleBusinessProfileProvider>
+                <DashboardLayout />
               </ProtectedRoute>
             }>
               <Route index element={<Dashboard />} />

@@ -8,7 +8,7 @@ import { ArrowLeft, MapPin, Star, Globe, Phone, Mail, ExternalLink } from "lucid
 import PostsTab from "@/components/ProfileDetails/PostsTab";
 import ReviewsTab from "@/components/ProfileDetails/ReviewsTab";
 import InsightsTab from "@/components/ProfileDetails/InsightsTab";
-import { useGoogleBusinessProfileContext } from "@/contexts/GoogleBusinessProfileContext";
+import { useGoogleBusinessProfile } from "@/hooks/useGoogleBusinessProfile";
 import { BusinessLocation } from "@/lib/googleBusinessProfile";
 
 interface BusinessProfile {
@@ -29,7 +29,7 @@ const ProfileDetails = () => {
   const { profileId } = useParams();
   const [location, setLocation] = useState<BusinessLocation | null>(null);
   const [loading, setLoading] = useState(true);
-  const { accounts, isLoading: googleLoading } = useGoogleBusinessProfileContext();
+  const { accounts, isLoading: googleLoading } = useGoogleBusinessProfile();
 
   useEffect(() => {
     const findLocation = () => {
@@ -122,23 +122,23 @@ const ProfileDetails = () => {
                 </span>
               </div>
               
-              {location.phoneNumbers && location.phoneNumbers.length > 0 && (
+              {location.phoneNumber && (
                 <div className="flex items-center gap-2">
                   <Phone className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">{location.phoneNumbers[0]}</span>
+                  <span className="text-sm">{location.phoneNumber}</span>
                 </div>
               )}
               
-              {location.websiteUri && (
+              {location.websiteUrl && (
                 <div className="flex items-center gap-2">
                   <Globe className="h-4 w-4 text-muted-foreground" />
                   <a 
-                    href={location.websiteUri} 
+                    href={location.websiteUrl} 
                     target="_blank" 
                     rel="noopener noreferrer"
                     className="text-sm text-primary hover:text-primary-hover flex items-center gap-1"
                   >
-                    {location.websiteUri}
+                    {location.websiteUrl}
                     <ExternalLink className="h-3 w-3" />
                   </a>
                 </div>
