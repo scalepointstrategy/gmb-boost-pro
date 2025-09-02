@@ -5,7 +5,8 @@
       "Bash(taskkill:*)",
       "Bash(npm start)",
       "Bash(curl:*)",
-      "Bash(cmd /c:*)"
+      "Bash(cmd /c:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []
