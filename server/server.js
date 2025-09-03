@@ -9,6 +9,23 @@ import { fileURLToPath } from 'url';
 // Load environment variables
 dotenv.config();
 
+// Production configuration - dynamic and hardcoded values for Azure deployment
+if (process.env.NODE_ENV === 'production' || process.env.PORT) {
+  // Google OAuth credentials (always the same)
+  process.env.GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '52772597205-9ogv54i6sfvucse3jrqj1nl1hlkspcv1.apps.googleusercontent.com';
+  process.env.GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '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';
+  
+  // Dynamic frontend URL detection for Azure Static Web Apps
+  // Priority: Explicit env var > Azure auto-detection > Fallback
+  const frontendUrl = process.env.FRONTEND_URL || 
+                     (process.env.WEBSITE_HOSTNAME && process.env.WEBSITE_HOSTNAME.includes('azurewebsites.net') ? 
+                       'https://polite-wave-08ec8c90f.1.azurestaticapps.net' : 
+                       'https://polite-wave-08ec8c90f.1.azurestaticapps.net');
+  
+  process.env.FRONTEND_URL = frontendUrl;
+  process.env.GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || `${frontendUrl}/auth/google/callback`;
+}
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -24,12 +41,17 @@ const allowedOrigins = [
   'http://localhost:3007',
   'http://localhost:3008',
   'http://localhost:3009',
+  // Azure backend URLs (current and any future deployments)
+  process.env.WEBSITE_HOSTNAME ? `https://${process.env.WEBSITE_HOSTNAME}` : null,
+  'https://scale-a5dwhnbtdmesd6fm.canadacentral-01.azurewebsites.net',
+  // Static Web App URLs (current and any future deployments)  
+  'https://polite-wave-08ec8c90f.1.azurestaticapps.net',
   process.env.FRONTEND_URL
 ].filter(Boolean);
 
 // In production, we serve from same domain so CORS is less restrictive
 if (process.env.NODE_ENV === 'production') {
-  allowedOrigins.push(process.env.FRONTEND_URL || 'https://yourdomain.com');
+  allowedOrigins.push(process.env.FRONTEND_URL || '');
 }
 
 app.use(cors({
@@ -119,6 +141,18 @@ app.get('/health', (req, res) => {
   res.json({ 
     status: 'OK', 
     message: 'Google Business Profile Backend Server is running',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Get current configuration (for debugging deployment issues)
+app.get('/config', (req, res) => {
+  res.json({
+    environment: process.env.NODE_ENV || 'development',
+    frontendUrl: process.env.FRONTEND_URL,
+    redirectUri: process.env.GOOGLE_REDIRECT_URI,
+    clientIdConfigured: !!process.env.GOOGLE_CLIENT_ID,
+    azureHostname: process.env.WEBSITE_HOSTNAME || 'not-detected',
     timestamp: new Date().toISOString()
   });
 });
@@ -263,7 +297,7 @@ app.get('/api/accounts', async (req, res) => {
 });
 
 // Get locations for a specific account
-app.get('/api/accounts/:accountName/locations', async (req, res) => {
+app.get('/api/accounts/:accountName(*)/locations', async (req, res) => {
   try {
     const { accountName } = req.params;
     const authHeader = req.headers.authorization;

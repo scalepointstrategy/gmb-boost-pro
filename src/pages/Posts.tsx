@@ -240,8 +240,25 @@ const Posts = () => {
       }
     } catch (error) {
       console.error('Error creating post:', error);
-      // Show error message to user
-      alert('Failed to create post. Please try again.');
+      
+      // Show detailed error message to user
+      let errorMessage = 'Failed to create post. Please try again.';
+      
+      if (error instanceof Error) {
+        // Check if it's a network error
+        if (error.message.includes('fetch')) {
+          errorMessage = 'Network error. Please check your connection and try again.';
+        } else if (error.message.includes('Access token')) {
+          errorMessage = 'Authentication error. Please reconnect your Google Business Profile.';
+        } else if (error.message.includes('API')) {
+          errorMessage = `API Error: ${error.message}`;
+        } else {
+          errorMessage = `Error: ${error.message}`;
+        }
+      }
+      
+      // Use alert for immediate feedback (can be replaced with toast notification later)
+      alert(`❌ ${errorMessage}\n\n💡 If this continues, try:\n• Checking your internet connection\n• Reconnecting your Google Business Profile\n• Refreshing the page`);
     }
   };
 
