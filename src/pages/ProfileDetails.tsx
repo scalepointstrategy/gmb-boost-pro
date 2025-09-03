@@ -5,9 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, MapPin, Star, Globe, Phone, Mail, ExternalLink } from "lucide-react";
+import { AutoPostingTab } from "@/components/ProfileDetails/AutoPostingTab";
 import PostsTab from "@/components/ProfileDetails/PostsTab";
 import ReviewsTab from "@/components/ProfileDetails/ReviewsTab";
 import InsightsTab from "@/components/ProfileDetails/InsightsTab";
+import PerformanceTab from "@/components/ProfileDetails/PerformanceTab";
+import PhotosTab from "@/components/ProfileDetails/PhotosTab";
+import EditProfileTab from "@/components/ProfileDetails/EditProfileTab";
+import SettingsTab from "@/components/ProfileDetails/SettingsTab";
 import { useGoogleBusinessProfile } from "@/hooks/useGoogleBusinessProfile";
 import { BusinessLocation } from "@/lib/googleBusinessProfile";
 
@@ -177,12 +182,26 @@ const ProfileDetails = () => {
       </Card>
 
       {/* Tabs */}
-      <Tabs defaultValue="posts" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+      <Tabs defaultValue="auto-posting" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8">
+          <TabsTrigger value="auto-posting">Auto Posting</TabsTrigger>
           <TabsTrigger value="posts">Posts</TabsTrigger>
           <TabsTrigger value="reviews">Reviews</TabsTrigger>
+          <TabsTrigger value="photos">Photos</TabsTrigger>
+          <TabsTrigger value="edit">Edit Profile</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
           <TabsTrigger value="insights">Insights</TabsTrigger>
+          <TabsTrigger value="performance">Performance</TabsTrigger>
         </TabsList>
+        
+        <TabsContent value="auto-posting">
+          <AutoPostingTab location={{
+            id: location.locationId,
+            name: location.displayName,
+            categories: location.categories.map(c => c.name),
+            websiteUri: location.websiteUrl
+          }} />
+        </TabsContent>
         
         <TabsContent value="posts">
           <PostsTab profileId={location.locationId} />
@@ -194,6 +213,22 @@ const ProfileDetails = () => {
         
         <TabsContent value="insights">
           <InsightsTab profileId={location.locationId} />
+        </TabsContent>
+        
+        <TabsContent value="performance">
+          <PerformanceTab profileId={location.locationId} />
+        </TabsContent>
+        
+        <TabsContent value="photos">
+          <PhotosTab profileId={location.locationId} />
+        </TabsContent>
+        
+        <TabsContent value="edit">
+          <EditProfileTab profileId={location.locationId} />
+        </TabsContent>
+        
+        <TabsContent value="settings">
+          <SettingsTab profileId={location.locationId} />
         </TabsContent>
       </Tabs>
     </div>

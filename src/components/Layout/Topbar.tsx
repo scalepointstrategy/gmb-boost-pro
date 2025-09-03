@@ -9,9 +9,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Bell, LogOut, Settings, User } from "lucide-react";
+import { LogOut, Settings, User } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { NotificationCenter } from "@/components/ui/notification-center";
 
 const Topbar = () => {
   const { currentUser, logout } = useAuth();
@@ -50,15 +51,7 @@ const Topbar = () => {
 
       <div className="flex items-center gap-4">
         {/* Notifications */}
-        <Button variant="ghost" size="sm" className="relative h-9 w-9 p-0">
-          <Bell className="h-4 w-4" />
-          <Badge 
-            variant="destructive" 
-            className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-xs"
-          >
-            3
-          </Badge>
-        </Button>
+        <NotificationCenter />
 
         {/* Premium Badge */}
         <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">

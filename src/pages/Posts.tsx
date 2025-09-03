@@ -20,6 +20,7 @@ import {
 import CreatePostModal from "@/components/ProfileDetails/CreatePostModal";
 import { useGoogleBusinessProfile } from "@/hooks/useGoogleBusinessProfile";
 import { googleBusinessProfileService } from "@/lib/googleBusinessProfile";
+import { useNotifications } from "@/contexts/NotificationContext";
 
 interface Post {
   id: string;
@@ -46,6 +47,9 @@ const Posts = () => {
     isConnected, 
     isLoading: googleLoading 
   } = useGoogleBusinessProfile();
+
+  // Get notifications context
+  const { addNotification } = useNotifications();
 
   useEffect(() => {
     // Real-time posts from Google Business Profile API
@@ -182,6 +186,40 @@ const Posts = () => {
       
       setPosts(prev => [newPost, ...prev]);
       setShowCreateModal(false);
+
+      // Add real-time notification based on post status
+      if (realTime) {
+        if (postStatus === 'PENDING' || postStatus === 'UNDER_REVIEW') {
+          addNotification({
+            type: 'post',
+            title: 'Post Sent for Review',
+            message: `Post for "${selectedLocation.displayName}" has been sent to Google Business Profile for review.`,
+            actionUrl: '/posts'
+          });
+        } else if (postStatus === 'LIVE') {
+          addNotification({
+            type: 'post',
+            title: 'Post Published!',
+            message: `Your post for "${selectedLocation.displayName}" is now live on Google Business Profile.`,
+            actionUrl: '/posts'
+          });
+        } else {
+          addNotification({
+            type: 'post',
+            title: 'Post Created',
+            message: `Post for "${selectedLocation.displayName}" has been created successfully.`,
+            actionUrl: '/posts'
+          });
+        }
+      } else {
+        // For simulated/local posts
+        addNotification({
+          type: 'post',
+          title: 'Post Drafted',
+          message: `Post for "${selectedLocation.displayName}" has been drafted locally due to API restrictions.`,
+          actionUrl: '/posts'
+        });
+      }
       
       // Show appropriate success message based on real status
       if (realTime) {

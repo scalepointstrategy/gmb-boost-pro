@@ -1,20 +1,21 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { BarChart3, TrendingUp, Users, Eye, PieChart, Activity, Clock, Sparkles } from "lucide-react";
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { TrendingUp, BarChart3, Clock, Sparkles } from 'lucide-react';
 
-interface InsightsTabProps {
+interface PerformanceTabProps {
   profileId: string;
 }
 
-const InsightsTab = ({ profileId }: InsightsTabProps) => {
+const PerformanceTab: React.FC<PerformanceTabProps> = ({ profileId }) => {
   return (
     <div className="space-y-6">
       <Card className="overflow-hidden">
-        <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b">
+        <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <PieChart className="h-5 w-5 text-green-600" />
-              Business Insights
+              <BarChart3 className="h-5 w-5 text-blue-600" />
+              Performance Analytics
             </div>
             <Badge variant="secondary" className="animate-pulse">
               Coming Soon
@@ -27,20 +28,20 @@ const InsightsTab = ({ profileId }: InsightsTabProps) => {
             <div className="relative">
               <div className="flex items-center space-x-4">
                 <div className="relative">
-                  <PieChart className="h-12 w-12 text-green-500 animate-bounce" />
+                  <TrendingUp className="h-12 w-12 text-blue-500 animate-bounce" />
                   <div className="absolute -top-1 -right-1">
                     <Sparkles className="h-4 w-4 text-yellow-500 animate-spin" />
                   </div>
                 </div>
                 <div className="relative">
-                  <Activity className="h-12 w-12 text-blue-500 animate-pulse" />
+                  <BarChart3 className="h-12 w-12 text-purple-500 animate-pulse" />
                   <div className="absolute -top-1 -right-1">
                     <Sparkles className="h-4 w-4 text-yellow-500 animate-ping" />
                   </div>
                 </div>
                 <div className="relative">
-                  <BarChart3 className="h-12 w-12 text-purple-500" style={{
-                    animation: 'spin 4s linear infinite'
+                  <Clock className="h-12 w-12 text-green-500" style={{
+                    animation: 'spin 3s linear infinite'
                   }} />
                   <div className="absolute -top-1 -right-1">
                     <Sparkles className="h-4 w-4 text-yellow-500 animate-bounce" />
@@ -53,7 +54,7 @@ const InsightsTab = ({ profileId }: InsightsTabProps) => {
                 {[...Array(6)].map((_, i) => (
                   <div
                     key={i}
-                    className="absolute w-2 h-2 bg-green-400 rounded-full opacity-60"
+                    className="absolute w-2 h-2 bg-blue-400 rounded-full opacity-60"
                     style={{
                       left: `${20 + i * 15}%`,
                       top: `${10 + (i % 2) * 20}%`,
@@ -66,22 +67,22 @@ const InsightsTab = ({ profileId }: InsightsTabProps) => {
 
             {/* Coming Soon Text */}
             <div className="text-center space-y-3">
-              <h3 className="text-2xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
-                Advanced Insights Coming Soon!
+              <h3 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                Performance Analytics Coming Soon!
               </h3>
               <p className="text-muted-foreground max-w-md mx-auto leading-relaxed">
-                Get detailed analytics about your profile performance, customer behavior, 
-                search trends, and comprehensive business intelligence insights.
+                We're working hard to bring you detailed performance insights including profile views, 
+                customer actions, engagement metrics, and much more.
               </p>
             </div>
 
             {/* Feature Preview Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full max-w-2xl mt-8">
               {[
-                { icon: Eye, label: "Profile Analytics", color: "green" },
-                { icon: Users, label: "Customer Behavior", color: "blue" },
-                { icon: TrendingUp, label: "Search Trends", color: "purple" },
-                { icon: Activity, label: "Business Intelligence", color: "orange" }
+                { icon: TrendingUp, label: "Views Analytics", color: "blue" },
+                { icon: BarChart3, label: "Engagement Metrics", color: "purple" },
+                { icon: Clock, label: "Real-time Data", color: "green" },
+                { icon: Sparkles, label: "Advanced Insights", color: "yellow" }
               ].map((feature, index) => (
                 <div
                   key={index}
@@ -127,4 +128,4 @@ const InsightsTab = ({ profileId }: InsightsTabProps) => {
   );
 };
 
-export default InsightsTab;
+export default PerformanceTab;

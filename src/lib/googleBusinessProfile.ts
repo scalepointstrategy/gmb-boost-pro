@@ -236,46 +236,26 @@ class GoogleBusinessProfileService {
     }
   }
 
-  // Get all business accounts
+  // Get all business accounts via backend to avoid CORS
   async getBusinessAccounts(): Promise<BusinessAccount[]> {
     try {
       if (!this.accessToken) {
         throw new Error('No access token available');
       }
 
-      console.log('Fetching Google Business Profile accounts directly from Google API');
+      console.log('Fetching Google Business Profile accounts via backend API');
       
-      // Try Google My Business API first, then fall back to Account Management API
-      let response;
-      let apiUsed = 'Account Management';
-      
-      try {
-        // Try the older Google My Business API which might have your profiles
-        response = await fetch('https://mybusiness.googleapis.com/v4/accounts', {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${this.accessToken}`,
-            'Content-Type': 'application/json',
-          },
-        });
-        apiUsed = 'My Business v4';
-        console.log('🔍 DEBUGGING: Trying Google My Business v4 API');
-      } catch (error) {
-        console.log('🔍 DEBUGGING: My Business v4 failed, trying Account Management API');
-        // Fall back to Account Management API
-        response = await fetch('https://mybusinessaccountmanagement.googleapis.com/v1/accounts', {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${this.accessToken}`,
-            'Content-Type': 'application/json',
-          },
-        });
-        apiUsed = 'Account Management v1';
-      }
+      const response = await fetch(`${this.backendUrl}/api/accounts`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Google API accounts error:', errorText);
+        const errorData = await response.json();
+        console.error('Backend accounts API error:', errorData);
         
         if (response.status === 403) {
           throw new Error('Access denied. Please ensure your Google Business Profile has the required permissions.');
@@ -285,7 +265,7 @@ class GoogleBusinessProfileService {
       }
 
       const data = await response.json();
-      console.log(`Google Business Profile accounts received via ${apiUsed}:`, data);
+      console.log(`Google Business Profile accounts received via backend (${data.apiUsed}):`, data);
       
       const accounts = data.accounts || [];
       if (accounts.length === 0) {
@@ -390,42 +370,18 @@ class GoogleBusinessProfileService {
         throw new Error('No access token available');
       }
 
-      console.log('Fetching locations directly from Google API:', accountName);
+      console.log('Fetching locations via backend API with pagination:', accountName);
       
-      // Try multiple API endpoints to get locations
-      let response;
-      let apiUsed = 'Business Information v1';
-      
-      try {
-        // First try Google My Business v4 API
-        const v4Url = `https://mybusiness.googleapis.com/v4/${accountName}/locations`;
-        console.log('🔍 DEBUGGING: Trying My Business v4 locations API:', v4Url);
-        
-        response = await fetch(v4Url, {
-          method: 'GET', 
-          headers: {
-            'Authorization': `Bearer ${this.accessToken}`,
-            'Content-Type': 'application/json',
-          },
-        });
-        apiUsed = 'My Business v4';
-      } catch (error) {
-        console.log('🔍 DEBUGGING: My Business v4 locations failed, trying Business Information API');
-        
-        // Fall back to Business Information API  
-        const readMask = 'name,title,storefrontAddress,websiteUri,phoneNumbers,categories,latlng,metadata,serviceArea,labels';
-        const apiUrl = `https://mybusinessbusinessinformation.googleapis.com/v1/${accountName}/locations?readMask=${encodeURIComponent(readMask)}`;
-        
-        console.log('🔍 DEBUGGING: Locations API URL:', apiUrl);
-        
-        response = await fetch(apiUrl, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${this.accessToken}`,
-            'Content-Type': 'application/json',
-          },
-        });
-      }
+      // Use the backend API which has pagination implemented
+      const response = await fetch(`${this.backendUrl}/api/accounts/${encodeURIComponent(accountName)}/locations`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('🔍 DEBUGGING: Backend locations response status:', response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -512,10 +468,10 @@ class GoogleBusinessProfileService {
       }
 
       const locationsData = await response.json();
-      console.log(`✅ DEBUGGING: Locations API succeeded! Data from ${apiUsed}:`, locationsData);
+      console.log(`✅ Backend locations API succeeded! Data:`, locationsData);
       const locations = locationsData.locations || [];
-      console.log(`✅ DEBUGGING: Found ${locations.length} locations with real API data`);
-      console.log('✅ DEBUGGING: First location sample:', locations[0]);
+      console.log(`✅ Found ${locations.length} locations via backend with pagination`);
+      console.log('✅ First location sample:', locations[0]);
       
       return locations.map((location: any) => ({
         name: location.name,
@@ -728,18 +684,25 @@ class GoogleBusinessProfileService {
   }
 
   // Get reviews for a specific location using Backend API
-  async getLocationReviews(locationName: string): Promise<BusinessReview[]> {
+  async getLocationReviews(locationName: string, options: { forceRefresh?: boolean } = {}): Promise<BusinessReview[]> {
     try {
       if (!this.accessToken) {
         throw new Error('No access token available');
       }
 
-      console.log('Fetching reviews for location via backend:', locationName);
+      console.log('Fetching reviews for location via backend:', locationName, 'options:', options);
       
       // Extract location ID from locationName (format: accounts/123/locations/456)
       const locationId = this.extractLocationId(locationName);
       
-      const response = await fetch(`${this.backendUrl}/api/locations/${locationId}/reviews`, {
+      // Build URL with query parameters
+      const url = new URL(`${this.backendUrl}/api/locations/${locationId}/reviews`);
+      if (options.forceRefresh) {
+        url.searchParams.append('forceRefresh', 'true');
+        url.searchParams.append('_t', Date.now().toString()); // Cache busting
+      }
+      
+      const response = await fetch(url.toString(), {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${this.accessToken}`,
@@ -751,36 +714,7 @@ class GoogleBusinessProfileService {
         const errorData = await response.json();
         console.error('Backend reviews fetch error:', errorData);
         
-        // If API fails, return mock reviews to demonstrate UI
-        console.warn('⚠️ Using mock reviews due to API error');
-        return [
-          {
-            id: '1',
-            name: `${locationName}/reviews/1`,
-            reviewer: {
-              displayName: 'Sarah Johnson',
-              profilePhotoUrl: undefined
-            },
-            starRating: 5,
-            comment: 'Great service and professional team! Highly recommend.',
-            createTime: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-            updateTime: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-            reply: undefined
-          },
-          {
-            id: '2',
-            name: `${locationName}/reviews/2`,
-            reviewer: {
-              displayName: 'Mike Chen',
-              profilePhotoUrl: undefined
-            },
-            starRating: 4,
-            comment: 'Good experience overall. Would use their services again.',
-            createTime: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-            updateTime: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-            reply: undefined
-          }
-        ];
+        throw new Error(`Failed to fetch reviews: ${errorData.error || response.statusText}`);
       }
 
       const data = await response.json();
@@ -887,6 +821,48 @@ class GoogleBusinessProfileService {
     
     console.log('Connection check:', { hasToken, isConnectedFlag, connected });
     return connected;
+  }
+
+  // Get the current access token
+  getAccessToken(): string | null {
+    return this.accessToken;
+  }
+
+  // Get performance insights for a location
+  async getLocationInsights(locationId: string, startDate?: string, endDate?: string): Promise<any> {
+    try {
+      if (!this.accessToken) {
+        throw new Error('No access token available');
+      }
+
+      console.log('Fetching performance insights for location via backend:', locationId);
+      
+      const params = new URLSearchParams();
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
+      
+      const response = await fetch(`${this.backendUrl}/api/locations/${locationId}/insights?${params}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Backend insights fetch error:', errorData);
+        throw new Error(`Failed to fetch insights: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('✅ Insights fetched successfully via backend:', data.apiUsed);
+      
+      return data;
+    } catch (error) {
+      console.error('Error fetching location insights via backend:', error);
+      throw error;
+    }
   }
 
   // Provide demo business accounts when API calls fail due to CORS

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Building2, MapPin, Star, Calendar, ArrowRight, Settings, AlertCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useGoogleBusinessProfile } from "@/hooks/useGoogleBusinessProfile";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 const Dashboard = () => {
   const { isConnected, accounts: profiles, isLoading } = useGoogleBusinessProfile();
@@ -22,6 +23,15 @@ const Dashboard = () => {
             <p className="text-muted-foreground">Loading your business profiles...</p>
           </div>
         </div>
+        
+        <div className="flex flex-col items-center justify-center py-16 space-y-4">
+          <LoadingSpinner size="xl" variant="primary" />
+          <div className="text-center space-y-2">
+            <h3 className="font-medium text-xl">Loading Business Profiles...</h3>
+            <p className="text-sm text-muted-foreground">Connecting to Google Business Profile and fetching your locations</p>
+          </div>
+        </div>
+        
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <Card key={i}>
