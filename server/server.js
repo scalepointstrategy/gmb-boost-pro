@@ -353,141 +353,37 @@ app.get('/api/accounts/:accountName(*)/locations', async (req, res) => {
   }
 });
 
-// Create a post for a location using locationId (for automation service)
-app.post('/api/locations/:locationId/posts', async (req, res) => {
+
+// Create a post for a location - handles both locationId and full locationName
+app.post('/api/locations/:locationParam/posts', async (req, res) => {
   try {
-    const { locationId } = req.params;
+    const { locationParam: encodedLocationParam } = req.params;
+    const decodedParam = decodeURIComponent(encodedLocationParam);
+    
+    // Determine if we received a simple locationId or full locationName
+    let locationName, locationId;
+    
+    if (decodedParam.includes('/')) {
+      // Full locationName format: accounts/123/locations/456
+      locationName = decodedParam;
+      locationId = decodedParam.split('/').pop(); // Extract the ID from the end
+      console.log('🔍 Received full location name:', locationName);
+      console.log('🔍 Extracted location ID:', locationId);
+    } else {
+      // Simple locationId format: 456
+      locationId = decodedParam;
+      locationName = `accounts/106433552101751461082/locations/${locationId}`;
+      console.log('🔍 Received location ID:', locationId);
+      console.log('🔍 Generated full location name:', locationName);
+    }
     const { summary, media, callToAction, topicType } = req.body;
     const authHeader = req.headers.authorization;
     
-    console.log('🔍 DEBUGGING POST /api/locations/:locationId/posts (automation)');
-    console.log('🔍 DEBUGGING: LocationId:', locationId);
-    console.log('🔍 DEBUGGING: Authorization header:', authHeader ? 'Present' : 'Missing');
-    console.log('🔍 DEBUGGING: Headers received:', Object.keys(req.headers));
-    console.log('🔍 DEBUGGING: Auth header value:', authHeader?.substring(0, 30) + '...' );
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.error('❌ DEBUGGING: Missing or invalid authorization header');
-      return res.status(401).json({ error: 'Access token required' });
-    }
-
-    const accessToken = authHeader.split(' ')[1];
-    oauth2Client.setCredentials({ access_token: accessToken });
-
-    console.log('🚀 Creating post via Google Business Profile API for location:', locationId);
-    console.log('📝 Post content:', summary);
-
-    // Try multiple APIs for post creation (same approach as successful createLocationPost)
-    let success = false;
-    let data = null;
-    let lastError = null;
-
-    const endpoints = [
-      `https://businessprofile.googleapis.com/v1/accounts/106433552101751461082/locations/${locationId}/localPosts`,
-      `https://mybusinessbusinessinformation.googleapis.com/v1/accounts/106433552101751461082/locations/${locationId}/localPosts`,
-      `https://businessprofile.googleapis.com/v1/locations/${locationId}/localPosts`, 
-      `https://mybusinessbusinessinformation.googleapis.com/v1/locations/${locationId}/localPosts`,
-      `https://mybusiness.googleapis.com/v4/accounts/106433552101751461082/locations/${locationId}/localPosts`
-    ];
-
-    const postData = {
-      languageCode: 'en-US',
-      topicType: topicType || 'STANDARD',
-      summary: summary,
-      media: media || [],
-      callToAction: callToAction
-    };
-
-    for (let i = 0; i < endpoints.length; i++) {
-      const endpoint = endpoints[i];
-      
-      console.log(`🌐 Trying post creation endpoint ${i + 1}/${endpoints.length}: ${endpoint}`);
-      
-      try {
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(postData),
-        });
-
-        console.log(`📡 Post creation endpoint ${i + 1} Response Status:`, response.status);
-
-        if (response.ok) {
-          data = await response.json();
-          console.log(`✅ Success with post creation API (endpoint ${i + 1}):`, data);
-          success = true;
-          break;
-        } else {
-          const errorText = await response.text();
-          console.error(`❌ Post creation endpoint ${i + 1} failed with:`, errorText.substring(0, 200));
-          lastError = errorText;
-        }
-      } catch (error) {
-        console.error(`❌ Post creation endpoint ${i + 1} exception:`, error.message);
-        lastError = error.message;
-      }
-    }
-
-    if (!success) {
-      console.warn('⚠️ All post creation endpoints failed - this is expected for most Google Business profiles');
-      console.warn('🔄 Providing simulation response for automation to continue working');
-      
-      // Create a simulated successful response since Google's post creation API is heavily restricted
-      const simulatedPost = {
-        name: `accounts/106433552101751461082/locations/${locationId}/localPosts/simulated_${Date.now()}`,
-        languageCode: postData.languageCode,
-        summary: postData.summary,
-        topicType: postData.topicType,
-        callToAction: postData.callToAction,
-        state: 'LIVE',
-        createTime: new Date().toISOString(),
-        updateTime: new Date().toISOString()
-      };
-
-      console.log('✅ Post simulation completed for automation - content generated and processed successfully');
-      
-      res.json({ 
-        success: true, 
-        post: simulatedPost,
-        status: 'LIVE',
-        message: 'Post processed successfully! (Note: Google Business Profile API restrictions prevent actual posting for most accounts)',
-        realTime: true,
-        simulation: true
-      });
-      return;
-    }
-
-    console.log('✅ Real post created successfully via automation route!');
-    
-    res.json({ 
-      success: true, 
-      post: data,
-      status: data.state || 'PENDING',
-      message: 'Post successfully created via automation!',
-      realTime: true
-    });
-
-  } catch (error) {
-    console.error('❌ Error creating post via automation:', error);
-    res.status(500).json({ 
-      error: 'Failed to create post',
-      message: error.message 
-    });
-  }
-});
-
-// Create a post for a location using locationName (for manual post creation)
-app.post('/api/locations/:locationName/posts', async (req, res) => {
-  try {
-    const { locationName: encodedLocationName } = req.params;
-    const locationName = decodeURIComponent(encodedLocationName);
-    const { summary, media, callToAction, topicType } = req.body;
-    const authHeader = req.headers.authorization;
-    
-    console.log('🔍 DEBUGGING POST /api/locations/:locationName/posts');
+    console.log('🔍 DEBUGGING POST /api/locations/:locationParam/posts');
+    console.log('🔍 DEBUGGING: Location param received:', encodedLocationParam);
+    console.log('🔍 DEBUGGING: Decoded param:', decodedParam);
+    console.log('🔍 DEBUGGING: Final location name:', locationName);
+    console.log('🔍 DEBUGGING: Final location ID:', locationId);
     console.log('🔍 DEBUGGING: Authorization header:', authHeader ? 'Present' : 'Missing');
     console.log('🔍 DEBUGGING: Headers received:', Object.keys(req.headers));
     console.log('🔍 DEBUGGING: Auth header value:', authHeader?.substring(0, 30) + '...' );
@@ -545,8 +441,8 @@ app.post('/api/locations/:locationName/posts', async (req, res) => {
     }
     
     if (!accountId) {
-      console.log('Could not find account ID, using locationId as fallback');
-      accountId = locationId;
+      console.log('Could not find account ID, using hardcoded account ID as fallback');
+      accountId = '106433552101751461082';
     }
     
     // Use Google Business Profile API v1 endpoint for creating posts
@@ -652,10 +548,23 @@ app.post('/api/locations/:locationName/posts', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error creating post:', error);
+    console.error('❌ Error creating post:', error);
+    console.error('❌ Error stack:', error.stack);
+    
+    // Provide more specific error messages
+    let errorMessage = error.message;
+    if (error.message.includes('fetch')) {
+      errorMessage = 'Failed to connect to Google APIs. Please check your internet connection and API permissions.';
+    } else if (error.message.includes('401')) {
+      errorMessage = 'Authentication failed. Please reconnect your Google account.';
+    } else if (error.message.includes('403')) {
+      errorMessage = 'Access denied. Your Google account may not have permission to create posts for this location.';
+    }
+    
     res.status(500).json({ 
       error: 'Failed to create post',
-      message: error.message 
+      message: errorMessage,
+      details: error.message
     });
   }
 });

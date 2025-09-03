@@ -24,7 +24,10 @@ export class OpenAIService {
     // Load API key from environment variables for security
     this.apiKey = import.meta.env.VITE_OPENAI_API_KEY || '';
     if (!this.apiKey) {
-      console.warn('⚠️ OpenAI API key not found in environment variables');
+      console.warn('⚠️ OpenAI API key not found in environment variables - will use fallback content');
+    } else {
+      console.log('✅ OpenAI API key loaded successfully');
+      console.log('🔑 API key preview:', this.apiKey.substring(0, 20) + '...');
     }
   }
 
@@ -63,6 +66,34 @@ export class OpenAIService {
     }
   }
 
+  // Hardcoded fallback content templates
+  private getFallbackContent(businessName: string, category: string, keywords: string | string[]): PostContent {
+    const keywordArray = typeof keywords === 'string' 
+      ? keywords.split(',').map(k => k.trim()).filter(k => k.length > 0)
+      : keywords;
+
+    const templates = [
+      `🌟 Thank you to all our amazing customers for making ${businessName} what it is today! Your support means everything to us. Come experience our exceptional ${keywordArray.join(' and ')} - we're committed to providing quality service that exceeds your expectations. Visit us today!`,
+      
+      `📍 Looking for ${keywordArray[0] || 'quality service'}? ${businessName} is your trusted ${category} destination! We specialize in ${keywordArray.slice(0, 3).join(', ')} and pride ourselves on customer satisfaction. Experience the difference that personalized service makes!`,
+      
+      `💼 At ${businessName}, we believe in building lasting relationships with our community. Our team is dedicated to providing exceptional ${keywordArray[0] || 'service'} with attention to detail. Come discover why customers choose us for ${keywordArray.slice(0, 2).join(' and ')}!`,
+      
+      `🔥 Exciting things are happening at ${businessName}! We're proud to offer top-quality ${keywordArray[0] || 'service'} with ${keywordArray[1] || 'professional excellence'}. Our experienced team is here to help with all your ${category} needs. Visit us today!`,
+      
+      `👥 Our team at ${businessName} is dedicated to exceeding your expectations. We combine ${keywordArray[0] || 'quality'} with ${keywordArray[1] || 'professionalism'} to deliver outstanding results. Experience why we're the preferred choice for ${keywordArray[2] || 'reliable service'}!`
+    ];
+
+    const randomTemplate = templates[Math.floor(Math.random() * templates.length)];
+    
+    return {
+      content: randomTemplate,
+      callToAction: {
+        actionType: 'LEARN_MORE' as const
+      }
+    };
+  }
+
   async generatePostContent(
     businessName: string,
     category: string,
@@ -70,7 +101,8 @@ export class OpenAIService {
     locationName?: string
   ): Promise<PostContent> {
     if (!this.apiKey) {
-      throw new Error('OpenAI API key not configured. Please check environment variables.');
+      console.warn('⚠️ OpenAI API key not configured, using fallback content');
+      return this.getFallbackContent(businessName, category, keywords);
     }
 
     // Convert keywords to array format if string is provided
@@ -150,8 +182,33 @@ Generate ONLY the post content, no additional text or formatting.`;
       };
 
     } catch (error) {
-      console.error('🚨 Failed to generate content:', error);
-      throw error;
+      console.error('🚨 Failed to generate content with OpenAI, falling back to hardcoded content:', error);
+      console.warn('📝 Using fallback content generation...');
+      return this.getFallbackContent(businessName, category, keywords);
+    }
+  }
+
+  // Hardcoded fallback review responses
+  private getFallbackReviewResponse(businessName: string, reviewRating: number): string {
+    if (reviewRating >= 4) {
+      const positiveResponses = [
+        `Thank you so much for your wonderful review! We're thrilled that you had a great experience with ${businessName}. Your feedback motivates our team to continue providing excellent service. We look forward to serving you again soon! 🌟`,
+        `We're delighted to hear about your positive experience! Thank you for taking the time to share your feedback about ${businessName}. It means a lot to our team. We can't wait to welcome you back! ⭐`,
+        `Your kind words truly made our day! We're so happy we could provide you with exceptional service at ${businessName}. Thank you for this amazing review. See you again soon! 😊`
+      ];
+      return positiveResponses[Math.floor(Math.random() * positiveResponses.length)];
+    } else if (reviewRating === 3) {
+      const neutralResponses = [
+        `Thank you for your feedback about ${businessName}. We appreciate you taking the time to share your experience. We're always looking for ways to improve, and your input is valuable to us. Please don't hesitate to reach out if there's anything specific we can do better. 👍`,
+        `We appreciate your honest review of ${businessName}. Your experience matters to us, and we'd love the opportunity to make it even better next time. Please feel free to contact us directly to discuss how we can improve. Thank you for giving us a chance! 🤝`
+      ];
+      return neutralResponses[Math.floor(Math.random() * neutralResponses.length)];
+    } else {
+      const negativeResponses = [
+        `Thank you for bringing this to our attention. We sincerely apologize that your experience at ${businessName} didn't meet your expectations. Your feedback is important to us, and we'd like the opportunity to make this right. Please contact us directly so we can discuss this further and improve. 🙏`,
+        `We're truly sorry to hear about your experience with ${businessName}. This is not the level of service we strive to provide. We take your feedback seriously and would appreciate the chance to discuss this with you directly to ensure this doesn't happen again. Please reach out to us. 🤝`
+      ];
+      return negativeResponses[Math.floor(Math.random() * negativeResponses.length)];
     }
   }
 
@@ -161,7 +218,8 @@ Generate ONLY the post content, no additional text or formatting.`;
     reviewRating: number
   ): Promise<string> {
     if (!this.apiKey) {
-      throw new Error('OpenAI API key not configured. Please check environment variables.');
+      console.warn('⚠️ OpenAI API key not configured, using fallback review response');
+      return this.getFallbackReviewResponse(businessName, reviewRating);
     }
 
     const tone = reviewRating >= 4 ? 'grateful and professional' : 'understanding and solution-focused';
@@ -218,8 +276,9 @@ Generate ONLY the response text, no additional formatting.`;
       return content;
 
     } catch (error) {
-      console.error('🚨 Failed to generate review response:', error);
-      throw error;
+      console.error('🚨 Failed to generate review response with OpenAI, falling back to hardcoded response:', error);
+      console.warn('📝 Using fallback review response generation...');
+      return this.getFallbackReviewResponse(businessName, reviewRating);
     }
   }
 }
