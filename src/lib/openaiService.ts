@@ -25,9 +25,17 @@ export class OpenAIService {
     this.apiKey = import.meta.env.VITE_OPENAI_API_KEY || '';
     if (!this.apiKey) {
       console.warn('⚠️ OpenAI API key not found in environment variables - will use fallback content');
+      console.warn('💡 To enable AI-generated content, please set VITE_OPENAI_API_KEY in your .env file');
+      console.warn('📖 See ENVIRONMENT_SETUP.md for detailed instructions');
     } else {
-      console.log('✅ OpenAI API key loaded successfully');
-      console.log('🔑 API key preview:', this.apiKey.substring(0, 20) + '...');
+      // Validate API key format (should start with 'sk-')
+      if (!this.apiKey.startsWith('sk-')) {
+        console.warn('⚠️ OpenAI API key format appears invalid (should start with "sk-") - will use fallback content');
+        this.apiKey = ''; // Clear invalid key
+      } else {
+        console.log('✅ OpenAI API key loaded successfully');
+        console.log('🔑 API key preview:', this.apiKey.substring(0, 20) + '...');
+      }
     }
   }
 
@@ -54,13 +62,17 @@ export class OpenAIService {
         console.log(`⏳ Waiting ${backoffTime}ms before retry...`);
         await new Promise(resolve => setTimeout(resolve, backoffTime));
         
-        // Retry the request
+        // Retry the request (inherit signal from original options)
         this.lastRequestTime = Date.now();
         return fetch(url, options);
       }
       
       return response;
     } catch (error) {
+      if (error.name === 'AbortError') {
+        console.warn('⏰ OpenAI API request timed out');
+        throw new Error('OpenAI API request timed out - falling back to template content');
+      }
       console.error('🚨 OpenAI API request failed:', error);
       throw error;
     }
@@ -81,7 +93,17 @@ export class OpenAIService {
       
       `🔥 Exciting things are happening at ${businessName}! We're proud to offer top-quality ${keywordArray[0] || 'service'} with ${keywordArray[1] || 'professional excellence'}. Our experienced team is here to help with all your ${category} needs. Visit us today!`,
       
-      `👥 Our team at ${businessName} is dedicated to exceeding your expectations. We combine ${keywordArray[0] || 'quality'} with ${keywordArray[1] || 'professionalism'} to deliver outstanding results. Experience why we're the preferred choice for ${keywordArray[2] || 'reliable service'}!`
+      `👥 Our team at ${businessName} is dedicated to exceeding your expectations. We combine ${keywordArray[0] || 'quality'} with ${keywordArray[1] || 'professionalism'} to deliver outstanding results. Experience why we're the preferred choice for ${keywordArray[2] || 'reliable service'}!`,
+      
+      `✨ What makes ${businessName} special? Our commitment to ${keywordArray[0] || 'excellence'} and ${keywordArray[1] || 'customer care'}! We're passionate about what we do and it shows in every interaction. Stop by and experience the ${businessName} difference!`,
+      
+      `💪 Ready for ${keywordArray[0] || 'exceptional service'}? ${businessName} has been proudly serving our community with ${keywordArray.slice(0, 2).join(' and ')}. Our experienced team is here to help you succeed. Contact us today to get started!`,
+      
+      `🎯 Need ${keywordArray[0] || 'professional service'}? Look no further than ${businessName}! We offer comprehensive ${keywordArray.slice(0, 3).join(', ')} solutions tailored to your needs. Let us show you why quality matters!`,
+      
+      `🏆 ${businessName} - where ${keywordArray[0] || 'quality'} meets ${keywordArray[1] || 'service'}! Our dedicated team is committed to providing exceptional ${category} solutions. Join our satisfied customers and experience excellence today!`,
+      
+      `🌈 Discover what makes ${businessName} your best choice for ${keywordArray[0] || 'quality service'}! We combine expertise, reliability, and ${keywordArray[1] || 'customer focus'} to deliver results that matter. Visit us and see the difference!`
     ];
 
     const randomTemplate = templates[Math.floor(Math.random() * templates.length)];
@@ -100,6 +122,12 @@ export class OpenAIService {
     keywords: string | string[],
     locationName?: string
   ): Promise<PostContent> {
+    // Validate inputs
+    if (!businessName || businessName.trim() === '') {
+      console.warn('⚠️ Business name is required, using fallback content');
+      return this.getFallbackContent('Your Business', category || 'business', keywords || []);
+    }
+
     if (!this.apiKey) {
       console.warn('⚠️ OpenAI API key not configured, using fallback content');
       return this.getFallbackContent(businessName, category, keywords);
@@ -134,6 +162,10 @@ Generate ONLY the post content, no additional text or formatting.`;
     console.log('📝 Prompt:', prompt.substring(0, 100) + '...');
 
     try {
+      // Add timeout to prevent hanging requests
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
       const response = await this.rateLimitedRequest(`${this.baseURL}/chat/completions`, {
         method: 'POST',
         headers: {
@@ -155,7 +187,10 @@ Generate ONLY the post content, no additional text or formatting.`;
           max_tokens: 150,
           temperature: 0.7,
         }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));

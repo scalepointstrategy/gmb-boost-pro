@@ -239,11 +239,32 @@ class AutomationService {
       });
       
       if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(`Backend API error: ${response.status} - ${errorData}`);
+        const errorText = await response.text();
+        console.error('❌ DEBUGGING: Backend API error response:', errorText);
+        throw new Error(`Backend API error: ${response.status} - ${errorText}`);
       }
       
-      const result = await response.json();
+      // Check if response is JSON before parsing
+      const contentType = response.headers.get('Content-Type');
+      console.log('🔍 DEBUGGING: Response content-type:', contentType);
+      
+      let result;
+      try {
+        const responseText = await response.text();
+        console.log('🔍 DEBUGGING: Raw response text:', responseText.substring(0, 200) + '...');
+        
+        // Check if the response starts with HTML (common error case)
+        if (responseText.trim().startsWith('<!DOCTYPE') || responseText.trim().startsWith('<html')) {
+          console.error('❌ DEBUGGING: Backend returned HTML instead of JSON');
+          throw new Error(`Backend API error: Server returned HTML error page instead of JSON. This usually indicates a server configuration issue or API endpoint problem.`);
+        }
+        
+        result = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('❌ DEBUGGING: JSON parse error:', parseError);
+        console.error('❌ DEBUGGING: Response was not valid JSON');
+        throw new Error(`Backend API returned invalid JSON: ${parseError.message}`);
+      }
       
       if (result && (result.post || result.success)) {
         console.log(`✅ Post created successfully via backend API`);
