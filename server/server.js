@@ -27,7 +27,7 @@ if (process.env.NODE_ENV === 'production' || process.env.PORT) {
 }
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5002;
 
 // Middleware - Allow multiple frontend URLs
 const allowedOrigins = [
@@ -397,7 +397,8 @@ app.post('/api/locations/:locationParam/posts', async (req, res) => {
 
     const postData = {
       summary,
-      topicType: topicType || 'STANDARD'
+      topicType: topicType || 'STANDARD',
+      languageCode: 'en-US'  // Required field for Google Business Profile API v4
     };
 
     // Add media if provided
@@ -455,35 +456,19 @@ app.post('/api/locations/:locationParam/posts', async (req, res) => {
     // Note: Google has restricted access to localPosts API in recent years
     let response;
     
-    // First try the Business Profile API
-    try {
-      response = await fetch(
-        `https://businessprofile.googleapis.com/v1/${locationName}/localPosts`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(postData)
-        }
-      );
-    } catch (error) {
-      console.log('Business Profile API failed, trying Business Information API...');
-      
-      // Fallback to Business Information API
-      response = await fetch(
-        `https://mybusinessbusinessinformation.googleapis.com/v1/${locationName}/localPosts`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(postData)
-        }
-      );
-    }
+    // Use the Google My Business API v4 - this is the standard API for localPosts
+    const apiUrl = `https://mybusiness.googleapis.com/v4/${locationName}/localPosts`;
+    
+    console.log('🔍 Using API URL:', apiUrl);
+    
+    response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(postData)
+    });
     
     console.log('📡 API Response Status:', response.status);
     console.log('📡 API Response Headers:', Object.fromEntries(response.headers.entries()));
@@ -1137,6 +1122,145 @@ app.get('/api/locations/:locationId/reviews-debug', async (req, res) => {
   }
 });
 
+// Get photos/media for a location
+app.get('/api/locations/:locationId/photos', async (req, res) => {
+  try {
+    const { locationId } = req.params;
+    const { pageSize = 50, pageToken } = req.query;
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Access token required' });
+    }
+
+    let accessToken = authHeader.split(' ')[1];
+    
+    // Try to find refresh token from stored tokens
+    let refreshToken = null;
+    for (const [userId, userData] of tokenStore.entries()) {
+      if (userData.tokens.access_token === accessToken) {
+        refreshToken = userData.tokens.refresh_token;
+        break;
+      }
+    }
+    
+    // Ensure token is valid and refresh if needed
+    try {
+      const validTokens = await ensureValidToken(accessToken, refreshToken);
+      accessToken = validTokens.access_token;
+      oauth2Client.setCredentials({ access_token: accessToken });
+    } catch (tokenError) {
+      console.error('Token validation/refresh failed for photos:', tokenError);
+      oauth2Client.setCredentials({ access_token: accessToken });
+    }
+
+    console.log(`🔍 Fetching photos for location: ${locationId}`);
+    
+    let photos = [];
+    let nextPageToken = null;
+    let apiUsed = '';
+    let lastError = null;
+    
+    // Try multiple API endpoints for photos/media
+    const apiEndpoints = [
+      `https://mybusiness.googleapis.com/v4/accounts/106433552101751461082/locations/${locationId}/media`,
+      `https://businessprofile.googleapis.com/v1/accounts/106433552101751461082/locations/${locationId}/media`,
+      `https://mybusinessbusinessinformation.googleapis.com/v1/accounts/106433552101751461082/locations/${locationId}/media`
+    ];
+    
+    for (let i = 0; i < apiEndpoints.length; i++) {
+      try {
+        // Build URL with proper query parameters
+        const url = new URL(apiEndpoints[i]);
+        url.searchParams.append('pageSize', pageSize.toString());
+        if (pageToken) url.searchParams.append('pageToken', pageToken);
+        
+        console.log(`🔍 Trying Google Photos API ${i + 1}/${apiEndpoints.length}:`, url.toString());
+        
+        const response = await fetch(url.toString(), {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          photos = data.mediaItems || data.media || [];
+          nextPageToken = data.nextPageToken || null;
+          apiUsed = `Google Business Profile Media API ${i + 1} (${response.status})`;
+          console.log(`✅ Success with ${apiUsed}: Found ${photos.length} photos`);
+          
+          // Log photo details for debugging
+          console.log(`📸 Found ${photos.length} photos:`);
+          photos.forEach((photo, index) => {
+            console.log(`  Photo ${index + 1}: ${photo.name} - ${photo.mediaFormat} - Category: ${photo.locationAssociation?.category}`);
+          });
+          
+          break;
+        } else {
+          const errorText = await response.text();
+          lastError = `API ${i + 1} failed: ${response.status} - ${errorText.substring(0, 200)}`;
+          console.log(`❌ ${lastError}`);
+        }
+      } catch (endpointError) {
+        lastError = `API ${i + 1} exception: ${endpointError.message}`;
+        console.log(`❌ ${lastError}`);
+      }
+    }
+    
+    // If no real photos found, return empty array (graceful degradation)
+    if (photos.length === 0) {
+      console.log('⚠️ No photos found via Google Business Profile API');
+      
+      return res.json({
+        photos: [],
+        nextPageToken: null,
+        totalCount: 0,
+        apiUsed: 'No photos available',
+        message: 'No photos found for this location. Photos may need to be added via Google Business Profile manager.',
+        lastFetched: new Date().toISOString(),
+        fromCache: false
+      });
+    }
+    
+    // Process and normalize photo data
+    const normalizedPhotos = photos.map(photo => ({
+      id: photo.name ? photo.name.split('/').pop() : Math.random().toString(36).substr(2, 9),
+      name: photo.name || 'Unknown Photo',
+      url: photo.googleUrl || photo.sourceUrl || '',
+      thumbnailUrl: photo.thumbnailUrl || photo.googleUrl || photo.sourceUrl || '',
+      mediaFormat: photo.mediaFormat || 'PHOTO',
+      category: photo.locationAssociation?.category || 'UNSPECIFIED',
+      createTime: photo.createTime || new Date().toISOString(),
+      dimensions: photo.dimensions || { width: 0, height: 0 },
+      attribution: photo.attribution || {}
+    }));
+    
+    const responseData = {
+      photos: normalizedPhotos,
+      nextPageToken,
+      apiUsed,
+      totalCount: normalizedPhotos.length,
+      lastFetched: new Date().toISOString(),
+      fromCache: false,
+      realTime: true
+    };
+    
+    res.json(responseData);
+
+  } catch (error) {
+    console.error('Error fetching photos:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch photos',
+      message: error.message,
+      details: 'Check server logs for more information'
+    });
+  }
+});
+
 // Get insights/analytics for a location
 app.get('/api/locations/:locationId/insights', async (req, res) => {
   try {
@@ -1311,7 +1435,7 @@ app.get('*', (req, res) => {
   }
 });
 
-// Start the server
+// Start the server  
 app.listen(PORT, () => {
   console.log(`🚀 Backend server running on http://localhost:${PORT}`);
   console.log('🔑 Google OAuth Configuration:');
@@ -1328,6 +1452,7 @@ app.listen(PORT, () => {
   console.log(`   GET  /api/locations/:locationId/posts`);
   console.log(`   GET  /api/locations/:locationId/reviews`);
   console.log(`   PUT  /api/locations/:locationId/reviews/:reviewId/reply`);
+  console.log(`   GET  /api/locations/:locationId/photos`);
   console.log(`   GET  /api/locations/:locationId/insights`);
 });
 

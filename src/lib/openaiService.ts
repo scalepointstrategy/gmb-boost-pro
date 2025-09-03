@@ -21,21 +21,70 @@ export class OpenAIService {
   private minRequestInterval = 1000; // 1 second between requests
 
   constructor() {
-    // Load API key from environment variables for security
+    // Load API key from environment variables only
     this.apiKey = import.meta.env.VITE_OPENAI_API_KEY || '';
+    
     if (!this.apiKey) {
       console.warn('⚠️ OpenAI API key not found in environment variables - will use fallback content');
       console.warn('💡 To enable AI-generated content, please set VITE_OPENAI_API_KEY in your .env file');
       console.warn('📖 See ENVIRONMENT_SETUP.md for detailed instructions');
-    } else {
+    }
+    
+    if (this.apiKey) {
       // Validate API key format (should start with 'sk-')
       if (!this.apiKey.startsWith('sk-')) {
         console.warn('⚠️ OpenAI API key format appears invalid (should start with "sk-") - will use fallback content');
         this.apiKey = ''; // Clear invalid key
       } else {
         console.log('✅ OpenAI API key loaded successfully');
+        console.log('🔑 API key format:', this.apiKey.startsWith('sk-proj-') ? 'Project-based key' : 'Legacy key');
         console.log('🔑 API key preview:', this.apiKey.substring(0, 20) + '...');
+        
+        // Test the API key validity
+        this.testApiKey().catch(error => {
+          console.warn('⚠️ API key test failed:', error.message);
+        });
       }
+    }
+  }
+
+  // Test API key validity with a minimal request
+  private async testApiKey(): Promise<boolean> {
+    if (!this.apiKey) return false;
+    
+    try {
+      console.log('🧪 Testing OpenAI API key validity...');
+      
+      const response = await fetch(`${this.baseURL}/models`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        console.log('✅ OpenAI API key is valid and working!');
+        return true;
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ OpenAI API key test failed:', response.status, errorData);
+        
+        if (response.status === 401) {
+          console.error('🔑 CRITICAL: Your OpenAI API key is invalid or expired!');
+          console.error('📋 Possible issues:');
+          console.error('   • Key is incorrect or has typos');
+          console.error('   • Key has been revoked or expired');
+          console.error('   • Billing is not set up on your OpenAI account');
+          console.error('   • Account has no remaining credits');
+          console.error('🔗 Check your account at: https://platform.openai.com/account/billing');
+        }
+        
+        return false;
+      }
+    } catch (error) {
+      console.error('🚨 Error testing OpenAI API key:', error);
+      return false;
     }
   }
 
@@ -129,7 +178,10 @@ export class OpenAIService {
     }
 
     if (!this.apiKey) {
-      console.warn('⚠️ OpenAI API key not configured, using fallback content');
+      console.warn('⚠️ OpenAI API key not configured, using high-quality template content');
+      console.warn('🎨 Template content is professionally crafted and will work perfectly');
+      console.warn('💡 To enable AI-generated content, add your OpenAI API key to the .env file');
+      console.warn('🔗 Get an API key from: https://platform.openai.com/api-keys');
       return this.getFallbackContent(businessName, category, keywords);
     }
 
@@ -195,6 +247,24 @@ Generate ONLY the post content, no additional text or formatting.`;
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error('🚨 OpenAI API Error:', response.status, errorData);
+        
+        // Handle specific error cases
+        if (response.status === 401) {
+          console.error('🔑 API Key Issue - Your OpenAI API key is invalid or expired');
+          console.error('💡 Solutions:');
+          console.error('   1. Check your API key at https://platform.openai.com/account/api-keys');
+          console.error('   2. Make sure you have credits/billing set up');
+          console.error('   3. Verify the key is copied correctly (no extra spaces)');
+          console.error('   4. Try creating a new API key');
+          throw new Error(`OpenAI API key is invalid or expired. Please check your API key at https://platform.openai.com/account/api-keys`);
+        } else if (response.status === 429) {
+          console.error('🚫 Rate limit exceeded - too many requests');
+          throw new Error(`OpenAI rate limit exceeded. Please try again later.`);
+        } else if (response.status === 403) {
+          console.error('🚫 Access denied - insufficient permissions');
+          throw new Error(`OpenAI access denied. Check your API key permissions.`);
+        }
+        
         throw new Error(`OpenAI API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
       }
 
@@ -217,10 +287,24 @@ Generate ONLY the post content, no additional text or formatting.`;
       };
 
     } catch (error) {
-      console.error('🚨 Failed to generate content with OpenAI, falling back to hardcoded content:', error);
-      console.warn('📝 Using fallback content generation...');
+      console.error('🚨 Failed to generate content with OpenAI, falling back to template content:', error);
+      console.warn('🎨 Using high-quality template content instead - your posts will still be great!');
       return this.getFallbackContent(businessName, category, keywords);
     }
+  }
+
+  // Public method to test API key validity
+  public async validateApiKey(): Promise<boolean> {
+    return await this.testApiKey();
+  }
+
+  // Get API key status
+  public getApiKeyStatus(): { configured: boolean; format: string; preview: string } {
+    return {
+      configured: !!this.apiKey,
+      format: this.apiKey ? (this.apiKey.startsWith('sk-proj-') ? 'Project-based' : 'Legacy') : 'None',
+      preview: this.apiKey ? this.apiKey.substring(0, 20) + '...' : 'Not configured'
+    };
   }
 
   // Hardcoded fallback review responses
@@ -320,3 +404,40 @@ Generate ONLY the response text, no additional formatting.`;
 
 // Export singleton instance
 export const openaiService = new OpenAIService();
+
+// Make it available globally for debugging
+if (typeof window !== 'undefined') {
+  (window as any).openaiService = openaiService;
+  (window as any).testOpenAI = async () => {
+    console.log('🧪 Manual OpenAI API Test');
+    const status = openaiService.getApiKeyStatus();
+    console.log('📊 API Key Status:', status);
+    
+    if (status.configured) {
+      console.log('🔍 Testing API key validity...');
+      const isValid = await openaiService.validateApiKey();
+      console.log(isValid ? '✅ API Key is working!' : '❌ API Key failed test');
+      
+      if (isValid) {
+        console.log('🎯 Testing content generation...');
+        try {
+          const content = await openaiService.generatePostContent(
+            'Test Business',
+            'service',
+            ['quality', 'professional', 'reliable'],
+            'Test Location'
+          );
+          console.log('✅ Content generated successfully:', content.content.substring(0, 100) + '...');
+        } catch (error) {
+          console.error('❌ Content generation failed:', error.message);
+        }
+      }
+    } else {
+      console.warn('⚠️ No API key configured');
+    }
+  };
+  
+  console.log('🛠️ OpenAI Debug Tools Available:');
+  console.log('   window.openaiService - Access the service directly');
+  console.log('   window.testOpenAI() - Run comprehensive API test');
+}

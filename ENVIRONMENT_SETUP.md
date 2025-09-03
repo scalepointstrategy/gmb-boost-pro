@@ -6,7 +6,7 @@ Create a `.env` file in the project root with the following variables:
 
 ```bash
 # OpenAI Configuration (Required)
-VITE_OPENAI_API_KEY=sk-your-openai-api-key-here
+VITE_OPENAI_API_KEY=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
 
 # Backend Configuration
 VITE_BACKEND_URL=https://scale1234-hnhpfeb6auddawez.canadacentral-01.azurewebsites.net

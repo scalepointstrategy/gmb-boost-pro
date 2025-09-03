@@ -95,7 +95,7 @@ class GoogleBusinessProfileService {
 
   constructor() {
     this.clientId = '52772597205-9ogv54i6sfvucse3jrqj1nl1hlkspcv1.apps.googleusercontent.com';
-    this.backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://scale1234-hnhpfeb6auddawez.canadacentral-01.azurewebsites.net';
+    this.backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5002';
     this.loadStoredTokens();
     this.initializeGoogleAPI();
   }
@@ -826,6 +826,46 @@ class GoogleBusinessProfileService {
   // Get the current access token
   getAccessToken(): string | null {
     return this.accessToken;
+  }
+
+  // Get photos for a specific location using Backend API
+  async getLocationPhotos(locationId: string): Promise<any[]> {
+    try {
+      if (!this.accessToken) {
+        throw new Error('No access token available');
+      }
+
+      console.log('Fetching photos for location via backend:', locationId);
+      
+      const response = await fetch(`${this.backendUrl}/api/locations/${locationId}/photos`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Backend photos fetch error:', errorData);
+        
+        if (response.status === 401) {
+          throw new Error('Authentication required. Please reconnect your Google account.');
+        }
+        
+        // Return empty array for graceful degradation
+        console.warn('Photos API failed, returning empty array for graceful degradation');
+        return [];
+      }
+
+      const data = await response.json();
+      console.log('✅ Photos fetched successfully via backend:', data.photos?.length || 0);
+      
+      return data.photos || [];
+    } catch (error) {
+      console.error('Error fetching location photos via backend:', error);
+      return [];
+    }
   }
 
   // Get performance insights for a location
