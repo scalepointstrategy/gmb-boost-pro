@@ -95,7 +95,7 @@ class GoogleBusinessProfileService {
 
   constructor() {
     this.clientId = '52772597205-9ogv54i6sfvucse3jrqj1nl1hlkspcv1.apps.googleusercontent.com';
-    this.backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://scale123-gkfabcgzc3gzesfw.canadacentral-01.azurewebsites.net';
+    this.backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://scale1234-hnhpfeb6auddawez.canadacentral-01.azurewebsites.net';
     this.loadStoredTokens();
     this.initializeGoogleAPI();
   }
