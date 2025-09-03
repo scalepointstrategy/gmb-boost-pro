@@ -19,6 +19,7 @@ import { useNotifications } from "@/contexts/NotificationContext";
 
 interface Review {
   id: string;
+  fullReviewName?: string; // Full review name from Google API
   author: string;
   rating: number;
   content: string;
@@ -90,6 +91,7 @@ const ReviewsTab = ({ profileId }: ReviewsTabProps) => {
         
         return {
           id: reviewId,
+          fullReviewName: review.name, // Store the full review name for API calls
           author: review.reviewer.displayName,
           rating: review.starRating,
           content: review.comment || '',
@@ -231,7 +233,12 @@ const ReviewsTab = ({ profileId }: ReviewsTabProps) => {
       console.log("Generated reply text:", replyText);
       
       // Reply to the review using Google Business Profile API
-      await googleBusinessProfileService.replyToReview(`locations/${profileId}/reviews/${reviewId}`, replyText);
+      // Use the full review name if available, otherwise construct it
+      const reviewForReply = reviews.find(r => r.id === reviewId);
+      const fullReviewName = reviewForReply?.fullReviewName || `accounts/106433552101751461082/locations/${profileId}/reviews/${reviewId}`;
+      
+      console.log('ReviewsTab: Sending reply with full review name:', fullReviewName);
+      await googleBusinessProfileService.replyToReview(fullReviewName, replyText);
       
       // Refresh the reviews to get the latest data including the new reply
       await fetchReviews(true);

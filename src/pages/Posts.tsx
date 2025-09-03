@@ -69,7 +69,8 @@ const Posts = () => {
         for (const account of accounts) {
           for (const location of account.locations) {
             try {
-              const locationPosts = await googleBusinessProfileService.getLocationPosts(location.name);
+              // Use locationId instead of the full location name to avoid path encoding issues
+              const locationPosts = await googleBusinessProfileService.getLocationPosts(location.locationId);
               
               // Convert BusinessPost to Post format
               const convertedPosts: Post[] = locationPosts.map(post => ({
@@ -157,8 +158,9 @@ const Posts = () => {
       }
       
       // Create the post using Google Business Profile API
+      // Use locationId instead of the full location name to avoid path encoding issues
       const createdPost = await googleBusinessProfileService.createLocationPost(
-        selectedLocation.name,
+        selectedLocation.locationId,
         {
           summary: postData.content,
           topicType: 'STANDARD',

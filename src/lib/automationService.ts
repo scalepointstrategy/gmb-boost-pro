@@ -216,7 +216,9 @@ class AutomationService {
         throw new Error('No access token available. Please connect to Google Business Profile first.');
       }
       
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://scale12345-hccmcmf7g3bwbvd0.canadacentral-01.azurewebsites.net';
+      console.log('🔍 DEBUGGING: Backend URL being used:', backendUrl);
+      console.log('🔍 DEBUGGING: VITE_BACKEND_URL env var:', import.meta.env.VITE_BACKEND_URL);
       
       const postData = {
         languageCode: 'en-US',

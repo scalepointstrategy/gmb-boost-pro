@@ -56,7 +56,7 @@ export class SimpleGoogleAuth {
       const tokenData = JSON.parse(tokens);
       
       // Call backend API to get real Google Business Profile data
-      const response = await fetch('http://localhost:5001/api/accounts', {
+      const response = await fetch('http://localhost:5003/api/accounts', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${tokenData.access_token}`,

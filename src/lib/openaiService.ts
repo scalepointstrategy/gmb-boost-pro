@@ -15,75 +15,89 @@ interface PostContent {
 }
 
 export class OpenAIService {
-  private apiKey: string;
-  private baseURL = 'https://api.openai.com/v1';
+  private subscriptionKey: string;
+  private endpoint: string;
+  private deployment: string;
+  private apiVersion: string;
   private lastRequestTime = 0;
   private minRequestInterval = 1000; // 1 second between requests
 
   constructor() {
-    // Load API key from environment variables only
-    this.apiKey = import.meta.env.VITE_OPENAI_API_KEY || '';
+    // Load Azure OpenAI configuration from environment variables
+    this.subscriptionKey = import.meta.env.VITE_AZURE_OPENAI_KEY || '';
+    this.endpoint = import.meta.env.VITE_AZURE_OPENAI_ENDPOINT || '';
+    this.deployment = import.meta.env.VITE_AZURE_OPENAI_DEPLOYMENT || '';
+    this.apiVersion = import.meta.env.VITE_AZURE_OPENAI_API_VERSION || '';
     
-    if (!this.apiKey) {
-      console.warn('⚠️ OpenAI API key not found in environment variables - will use fallback content');
-      console.warn('💡 To enable AI-generated content, please set VITE_OPENAI_API_KEY in your .env file');
+    if (!this.subscriptionKey || !this.endpoint || !this.deployment || !this.apiVersion) {
+      console.warn('⚠️ Azure OpenAI configuration not found in environment variables - will use fallback content');
+      console.warn('💡 To enable AI-generated content, please set Azure OpenAI variables in your .env file:');
+      console.warn('   - VITE_AZURE_OPENAI_KEY');
+      console.warn('   - VITE_AZURE_OPENAI_ENDPOINT');
+      console.warn('   - VITE_AZURE_OPENAI_DEPLOYMENT');
+      console.warn('   - VITE_AZURE_OPENAI_API_VERSION');
       console.warn('📖 See ENVIRONMENT_SETUP.md for detailed instructions');
     }
     
-    if (this.apiKey) {
-      // Validate API key format (should start with 'sk-')
-      if (!this.apiKey.startsWith('sk-')) {
-        console.warn('⚠️ OpenAI API key format appears invalid (should start with "sk-") - will use fallback content');
-        this.apiKey = ''; // Clear invalid key
-      } else {
-        console.log('✅ OpenAI API key loaded successfully');
-        console.log('🔑 API key format:', this.apiKey.startsWith('sk-proj-') ? 'Project-based key' : 'Legacy key');
-        console.log('🔑 API key preview:', this.apiKey.substring(0, 20) + '...');
-        
-        // Test the API key validity
-        this.testApiKey().catch(error => {
-          console.warn('⚠️ API key test failed:', error.message);
-        });
-      }
+    if (this.subscriptionKey && this.endpoint && this.deployment && this.apiVersion) {
+      console.log('✅ Azure OpenAI configuration loaded successfully');
+      console.log('🔑 Endpoint:', this.endpoint);
+      console.log('🚀 Deployment:', this.deployment);
+      console.log('📅 API Version:', this.apiVersion);
+      console.log('🔑 Subscription key preview:', this.subscriptionKey.substring(0, 8) + '...');
+      
+      // Test the API configuration validity
+      this.testApiKey().catch(error => {
+        console.warn('⚠️ Azure OpenAI API test failed:', error.message);
+      });
     }
   }
 
-  // Test API key validity with a minimal request
+  // Test Azure OpenAI API configuration validity
   private async testApiKey(): Promise<boolean> {
-    if (!this.apiKey) return false;
+    if (!this.subscriptionKey || !this.endpoint || !this.deployment || !this.apiVersion) return false;
     
     try {
-      console.log('🧪 Testing OpenAI API key validity...');
+      console.log('🧪 Testing Azure OpenAI API configuration...');
       
-      const response = await fetch(`${this.baseURL}/models`, {
-        method: 'GET',
+      // Test with a simple completion request
+      const testUrl = `${this.endpoint}/openai/deployments/${this.deployment}/chat/completions?api-version=${this.apiVersion}`;
+      
+      const response = await fetch(testUrl, {
+        method: 'POST',
         headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
+          'api-key': this.subscriptionKey,
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: 'test' }],
+          max_tokens: 1,
+          temperature: 0
+        }),
       });
 
-      if (response.ok) {
-        console.log('✅ OpenAI API key is valid and working!');
+      if (response.ok || response.status === 400) { // 400 is OK for this test (means API is accessible)
+        console.log('✅ Azure OpenAI API configuration is valid and working!');
         return true;
       } else {
         const errorData = await response.json().catch(() => ({}));
-        console.error('❌ OpenAI API key test failed:', response.status, errorData);
+        console.error('❌ Azure OpenAI API test failed:', response.status, errorData);
         
         if (response.status === 401) {
-          console.error('🔑 CRITICAL: Your OpenAI API key is invalid or expired!');
+          console.error('🔑 CRITICAL: Your Azure OpenAI API key is invalid or expired!');
           console.error('📋 Possible issues:');
-          console.error('   • Key is incorrect or has typos');
+          console.error('   • Subscription key is incorrect or has typos');
           console.error('   • Key has been revoked or expired');
-          console.error('   • Billing is not set up on your OpenAI account');
-          console.error('   • Account has no remaining credits');
-          console.error('🔗 Check your account at: https://platform.openai.com/account/billing');
+          console.error('   • Endpoint URL is incorrect');
+          console.error('   • Deployment name is incorrect');
+          console.error('   • API version is not supported');
+          console.error('🔗 Check your Azure OpenAI resource in the Azure portal');
         }
         
         return false;
       }
     } catch (error) {
-      console.error('🚨 Error testing OpenAI API key:', error);
+      console.error('🚨 Error testing Azure OpenAI API:', error);
       return false;
     }
   }
@@ -177,11 +191,11 @@ export class OpenAIService {
       return this.getFallbackContent('Your Business', category || 'business', keywords || []);
     }
 
-    if (!this.apiKey) {
-      console.warn('⚠️ OpenAI API key not configured, using high-quality template content');
+    if (!this.subscriptionKey || !this.endpoint || !this.deployment || !this.apiVersion) {
+      console.warn('⚠️ Azure OpenAI not configured, using high-quality template content');
       console.warn('🎨 Template content is professionally crafted and will work perfectly');
-      console.warn('💡 To enable AI-generated content, add your OpenAI API key to the .env file');
-      console.warn('🔗 Get an API key from: https://platform.openai.com/api-keys');
+      console.warn('💡 To enable AI-generated content, add your Azure OpenAI configuration to the .env file');
+      console.warn('🔗 Set up Azure OpenAI in your Azure portal');
       return this.getFallbackContent(businessName, category, keywords);
     }
 
@@ -200,7 +214,7 @@ export class OpenAIService {
 Key requirements:
 - MUST incorporate these specific keywords naturally: ${keywordText}
 - Use at least 3-5 of these keywords throughout the post
-- Keep it under 150 words
+- Keep it under 120 words maximum
 - Make it engaging and professional
 - Include a clear call-to-action
 - Don't use hashtags
@@ -210,7 +224,7 @@ Key requirements:
 
 Generate ONLY the post content, no additional text or formatting.`;
 
-    console.log('🤖 Generating content with OpenAI...');
+    console.log('🤖 Generating content with Azure OpenAI...');
     console.log('📝 Prompt:', prompt.substring(0, 100) + '...');
 
     try {
@@ -218,25 +232,26 @@ Generate ONLY the post content, no additional text or formatting.`;
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-      const response = await this.rateLimitedRequest(`${this.baseURL}/chat/completions`, {
+      const azureUrl = `${this.endpoint}/openai/deployments/${this.deployment}/chat/completions?api-version=${this.apiVersion}`;
+      
+      const response = await this.rateLimitedRequest(azureUrl, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
+          'api-key': this.subscriptionKey,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gpt-3.5-turbo',
           messages: [
             {
               role: 'system',
-              content: 'You are a professional social media content creator specializing in Google Business Profile posts. Generate engaging, keyword-focused content under 150 words.'
+              content: 'You are a professional social media content creator specializing in Google Business Profile posts. Generate engaging, keyword-focused content under 120 words maximum.'
             },
             {
               role: 'user',
               content: prompt
             }
           ],
-          max_tokens: 150,
+          max_tokens: 120,
           temperature: 0.7,
         }),
         signal: controller.signal,
@@ -250,32 +265,32 @@ Generate ONLY the post content, no additional text or formatting.`;
         
         // Handle specific error cases
         if (response.status === 401) {
-          console.error('🔑 API Key Issue - Your OpenAI API key is invalid or expired');
+          console.error('🔑 API Key Issue - Your Azure OpenAI subscription key is invalid or expired');
           console.error('💡 Solutions:');
-          console.error('   1. Check your API key at https://platform.openai.com/account/api-keys');
-          console.error('   2. Make sure you have credits/billing set up');
-          console.error('   3. Verify the key is copied correctly (no extra spaces)');
-          console.error('   4. Try creating a new API key');
-          throw new Error(`OpenAI API key is invalid or expired. Please check your API key at https://platform.openai.com/account/api-keys`);
+          console.error('   1. Check your subscription key in the Azure portal');
+          console.error('   2. Verify the endpoint URL is correct');
+          console.error('   3. Ensure the deployment name matches your Azure OpenAI deployment');
+          console.error('   4. Check the API version is supported');
+          throw new Error(`Azure OpenAI API key is invalid or expired. Please check your Azure OpenAI configuration.`);
         } else if (response.status === 429) {
           console.error('🚫 Rate limit exceeded - too many requests');
-          throw new Error(`OpenAI rate limit exceeded. Please try again later.`);
+          throw new Error(`Azure OpenAI rate limit exceeded. Please try again later.`);
         } else if (response.status === 403) {
           console.error('🚫 Access denied - insufficient permissions');
-          throw new Error(`OpenAI access denied. Check your API key permissions.`);
+          throw new Error(`Azure OpenAI access denied. Check your subscription and permissions.`);
         }
         
-        throw new Error(`OpenAI API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+        throw new Error(`Azure OpenAI API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
       }
 
       const data: OpenAIResponse = await response.json();
       const content = data.choices[0]?.message?.content?.trim();
 
       if (!content) {
-        throw new Error('No content generated by OpenAI');
+        throw new Error('No content generated by Azure OpenAI');
       }
 
-      console.log('✅ Content generated successfully');
+      console.log('✅ Content generated successfully with Azure OpenAI');
       console.log('📝 Generated content:', content.substring(0, 100) + '...');
 
       // Return with a simple call-to-action
@@ -287,7 +302,7 @@ Generate ONLY the post content, no additional text or formatting.`;
       };
 
     } catch (error) {
-      console.error('🚨 Failed to generate content with OpenAI, falling back to template content:', error);
+      console.error('🚨 Failed to generate content with Azure OpenAI, falling back to template content:', error);
       console.warn('🎨 Using high-quality template content instead - your posts will still be great!');
       return this.getFallbackContent(businessName, category, keywords);
     }
@@ -298,12 +313,15 @@ Generate ONLY the post content, no additional text or formatting.`;
     return await this.testApiKey();
   }
 
-  // Get API key status
+  // Get Azure OpenAI configuration status
   public getApiKeyStatus(): { configured: boolean; format: string; preview: string } {
+    const isConfigured = !!(this.subscriptionKey && this.endpoint && this.deployment && this.apiVersion);
     return {
-      configured: !!this.apiKey,
-      format: this.apiKey ? (this.apiKey.startsWith('sk-proj-') ? 'Project-based' : 'Legacy') : 'None',
-      preview: this.apiKey ? this.apiKey.substring(0, 20) + '...' : 'Not configured'
+      configured: isConfigured,
+      format: isConfigured ? 'Azure OpenAI' : 'None',
+      preview: isConfigured ? 
+        `Endpoint: ${this.endpoint}, Deployment: ${this.deployment}` : 
+        'Not configured'
     };
   }
 
@@ -336,8 +354,8 @@ Generate ONLY the post content, no additional text or formatting.`;
     reviewText: string,
     reviewRating: number
   ): Promise<string> {
-    if (!this.apiKey) {
-      console.warn('⚠️ OpenAI API key not configured, using fallback review response');
+    if (!this.subscriptionKey || !this.endpoint || !this.deployment || !this.apiVersion) {
+      console.warn('⚠️ Azure OpenAI not configured, using fallback review response');
       return this.getFallbackReviewResponse(businessName, reviewRating);
     }
 
@@ -347,7 +365,7 @@ Generate ONLY the post content, no additional text or formatting.`;
 Review (${reviewRating}/5 stars): "${reviewText}"
 
 Requirements:
-- Keep response under 100 words
+- Keep response under 120 words maximum
 - Be ${tone}
 - ${reviewRating >= 4 ? 'Thank them for their positive feedback' : 'Acknowledge their concerns and offer to resolve issues'}
 - Include the business name naturally
@@ -357,45 +375,46 @@ Requirements:
 Generate ONLY the response text, no additional formatting.`;
 
     try {
-      const response = await this.rateLimitedRequest(`${this.baseURL}/chat/completions`, {
+      const azureUrl = `${this.endpoint}/openai/deployments/${this.deployment}/chat/completions?api-version=${this.apiVersion}`;
+      
+      const response = await this.rateLimitedRequest(azureUrl, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
+          'api-key': this.subscriptionKey,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gpt-3.5-turbo',
           messages: [
             {
               role: 'system',
-              content: 'You are a professional customer service representative responding to Google Business reviews. Be authentic, helpful, and appropriately emotional.'
+              content: 'You are a professional customer service representative responding to Google Business reviews. Be authentic, helpful, and appropriately emotional. Keep responses under 120 words.'
             },
             {
               role: 'user',
               content: prompt
             }
           ],
-          max_tokens: 100,
+          max_tokens: 120,
           temperature: 0.6,
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(`OpenAI API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+        throw new Error(`Azure OpenAI API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
       }
 
       const data: OpenAIResponse = await response.json();
       const content = data.choices[0]?.message?.content?.trim();
 
       if (!content) {
-        throw new Error('No response generated by OpenAI');
+        throw new Error('No response generated by Azure OpenAI');
       }
 
       return content;
 
     } catch (error) {
-      console.error('🚨 Failed to generate review response with OpenAI, falling back to hardcoded response:', error);
+      console.error('🚨 Failed to generate review response with Azure OpenAI, falling back to hardcoded response:', error);
       console.warn('📝 Using fallback review response generation...');
       return this.getFallbackReviewResponse(businessName, reviewRating);
     }
@@ -408,15 +427,15 @@ export const openaiService = new OpenAIService();
 // Make it available globally for debugging
 if (typeof window !== 'undefined') {
   (window as any).openaiService = openaiService;
-  (window as any).testOpenAI = async () => {
-    console.log('🧪 Manual OpenAI API Test');
+  (window as any).testAzureOpenAI = async () => {
+    console.log('🧪 Manual Azure OpenAI API Test');
     const status = openaiService.getApiKeyStatus();
-    console.log('📊 API Key Status:', status);
+    console.log('📊 API Configuration Status:', status);
     
     if (status.configured) {
-      console.log('🔍 Testing API key validity...');
+      console.log('🔍 Testing API configuration validity...');
       const isValid = await openaiService.validateApiKey();
-      console.log(isValid ? '✅ API Key is working!' : '❌ API Key failed test');
+      console.log(isValid ? '✅ Azure OpenAI is working!' : '❌ Azure OpenAI failed test');
       
       if (isValid) {
         console.log('🎯 Testing content generation...');
@@ -433,11 +452,11 @@ if (typeof window !== 'undefined') {
         }
       }
     } else {
-      console.warn('⚠️ No API key configured');
+      console.warn('⚠️ Azure OpenAI not configured');
     }
   };
   
-  console.log('🛠️ OpenAI Debug Tools Available:');
+  console.log('🛠️ Azure OpenAI Debug Tools Available:');
   console.log('   window.openaiService - Access the service directly');
-  console.log('   window.testOpenAI() - Run comprehensive API test');
+  console.log('   window.testAzureOpenAI() - Run comprehensive API test');
 }

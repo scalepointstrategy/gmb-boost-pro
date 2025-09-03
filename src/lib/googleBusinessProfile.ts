@@ -95,7 +95,7 @@ class GoogleBusinessProfileService {
 
   constructor() {
     this.clientId = '52772597205-9ogv54i6sfvucse3jrqj1nl1hlkspcv1.apps.googleusercontent.com';
-    this.backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5002';
+    this.backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://scale12345-hccmcmf7g3bwbvd0.canadacentral-01.azurewebsites.net';
     this.loadStoredTokens();
     this.initializeGoogleAPI();
   }
@@ -244,8 +244,11 @@ class GoogleBusinessProfileService {
       }
 
       console.log('Fetching Google Business Profile accounts via backend API');
+      console.log('🔍 ACCOUNTS DEBUG: Backend URL being used:', this.backendUrl);
+      console.log('🔍 ACCOUNTS DEBUG: VITE_BACKEND_URL env var:', import.meta.env.VITE_BACKEND_URL);
+      console.log('🔍 ACCOUNTS DEBUG: Full URL:', `${this.backendUrl}/api/accounts`);
       
-      const response = await fetch(`${this.backendUrl}/api/accounts`, {
+      const response = await fetch(`${this.backendUrl}/api/accounts?_t=${Date.now()}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${this.accessToken}`,
@@ -568,16 +571,23 @@ class GoogleBusinessProfileService {
   }
 
   // Get posts for a specific location using Backend API
-  async getLocationPosts(locationName: string): Promise<BusinessPost[]> {
+  async getLocationPosts(locationNameOrId: string): Promise<BusinessPost[]> {
     try {
       if (!this.accessToken) {
         throw new Error('No access token available');
       }
 
-      console.log('Fetching posts for location via backend:', locationName);
+      console.log('Fetching posts for location via backend:', locationNameOrId);
       
-      // Extract location ID from locationName (format: accounts/123/locations/456)
-      const locationId = this.extractLocationId(locationName);
+      // Handle both locationId and full locationName formats
+      let locationId: string;
+      if (locationNameOrId.includes('/')) {
+        // Full locationName format: accounts/123/locations/456
+        locationId = this.extractLocationId(locationNameOrId);
+      } else {
+        // Simple locationId format: 456
+        locationId = locationNameOrId;
+      }
       
       const response = await fetch(`${this.backendUrl}/api/locations/${locationId}/posts`, {
         method: 'GET',
@@ -600,7 +610,7 @@ class GoogleBusinessProfileService {
       const posts: BusinessPost[] = (data.posts || []).map((post: any) => ({
         id: this.extractIdFromName(post.name),
         name: post.name,
-        locationName: locationName,
+        locationName: locationNameOrId,
         summary: post.summary,
         callToAction: post.callToAction,
         media: post.media,
@@ -619,7 +629,7 @@ class GoogleBusinessProfileService {
   }
 
   // Create a new post for a location using Backend API
-  async createLocationPost(locationName: string, postData: {
+  async createLocationPost(locationNameOrId: string, postData: {
     summary: string;
     callToAction?: {
       actionType: 'BOOK' | 'ORDER' | 'SHOP' | 'LEARN_MORE' | 'SIGN_UP' | 'CALL';
@@ -634,27 +644,69 @@ class GoogleBusinessProfileService {
       }
 
       console.log('🚀 Creating real post via backend API');
-      console.log('Location:', locationName, 'Data:', postData);
+      console.log('Location Input:', locationNameOrId, 'Type:', typeof locationNameOrId);
+      console.log('Post Data:', postData);
       
-      // Send the full location name to the backend, URL-encoded
-      const encodedLocationName = encodeURIComponent(locationName);
+      // Handle both locationId and full locationName formats for the URL
+      let locationParam: string;
+      if (locationNameOrId.includes('/')) {
+        // Full locationName format: accounts/123/locations/456 -> encode the whole thing
+        locationParam = encodeURIComponent(locationNameOrId);
+        console.log('🔍 Using encoded full location name:', locationParam);
+      } else {
+        // Simple locationId format: 456 -> use directly
+        locationParam = locationNameOrId;
+        console.log('🔍 Using location ID directly:', locationParam);
+      }
       
-      const response = await fetch(`${this.backendUrl}/api/locations/${encodedLocationName}/posts`, {
+      const finalUrl = `${this.backendUrl}/api/locations/${locationParam}/posts`;
+      console.log('🔍 Final API URL:', finalUrl);
+      
+      const requestBody = {
+        summary: postData.summary,
+        topicType: postData.topicType || 'STANDARD',
+        callToAction: postData.callToAction
+      };
+      console.log('🔍 Request body:', requestBody);
+      
+      const response = await fetch(finalUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${this.accessToken}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          summary: postData.summary,
-          topicType: postData.topicType || 'STANDARD',
-          callToAction: postData.callToAction
-        }),
+        body: JSON.stringify(requestBody),
       });
 
+      console.log('🔍 Response status:', response.status);
+      console.log('🔍 Response headers:', Object.fromEntries(response.headers.entries()));
+      
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error('❌ Backend post creation error:', errorData);
+        const responseText = await response.text();
+        console.error('❌ Backend post creation error (raw response):', responseText);
+        
+        // Check if response is HTML (common for 404 pages)
+        if (responseText.trim().startsWith('<!DOCTYPE') || responseText.trim().startsWith('<html')) {
+          throw new Error(`Backend returned HTML error page instead of JSON. URL: ${finalUrl}. This usually means the endpoint doesn't exist or there's a routing issue.`);
+        }
+        
+        // Try to parse as JSON
+        let errorData;
+        try {
+          errorData = JSON.parse(responseText);
+        } catch (parseError) {
+          throw new Error(`Backend returned non-JSON response: ${responseText.substring(0, 200)}...`);
+        }
+        
+        console.error('❌ Parsed error data:', errorData);
+        
+        // Handle specific error cases with helpful messages
+        if (response.status === 404) {
+          throw new Error(`Post endpoint not found. Please check if the location ID is correct: ${locationParam}`);
+        } else if (response.status === 503) {
+          throw new Error(`Google Business Profile API temporarily unavailable. Please try again in a few minutes.`);
+        }
+        
         throw new Error(`Failed to create post: ${response.status} - ${errorData.error}`);
       }
 
@@ -665,7 +717,7 @@ class GoogleBusinessProfileService {
       const post: BusinessPost = {
         id: this.extractIdFromName(data.post?.name || ''),
         name: data.post?.name || '',
-        locationName: locationName,
+        locationName: locationNameOrId,
         summary: data.post?.summary || postData.summary,
         callToAction: data.post?.callToAction || postData.callToAction,
         media: data.post?.media || [],
@@ -713,6 +765,12 @@ class GoogleBusinessProfileService {
       if (!response.ok) {
         const errorData = await response.json();
         console.error('Backend reviews fetch error:', errorData);
+        
+        // Handle 503 Service Unavailable gracefully
+        if (response.status === 503) {
+          console.warn('⚠️ Google Business Profile API temporarily unavailable. This is normal during high usage periods.');
+          return []; // Return empty array instead of throwing error
+        }
         
         throw new Error(`Failed to fetch reviews: ${errorData.error || response.statusText}`);
       }

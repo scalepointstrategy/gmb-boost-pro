@@ -50,7 +50,8 @@ const PostsTab = ({ profileId }: PostsTabProps) => {
         // For now, we'll construct the location name based on the profileId
         // In a real implementation, you might want to pass the full location object
         
-        const locationPosts = await googleBusinessProfileService.getLocationPosts(`locations/${profileId}`);
+        // Use the profileId directly - the service will handle the proper location name format
+        const locationPosts = await googleBusinessProfileService.getLocationPosts(profileId);
         
         // Convert BusinessPost to Post format
         const convertedPosts: Post[] = locationPosts.map(post => ({

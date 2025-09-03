@@ -35,6 +35,7 @@ interface Review {
   id: string;
   profileId: string;
   profileName: string;
+  fullReviewName?: string; // Full review name from Google API
   author: string;
   rating: number;
   content: string;
@@ -98,7 +99,7 @@ const Reviews = () => {
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
   const [replyDialogOpen, setReplyDialogOpen] = useState(false);
   const [customReply, setCustomReply] = useState('');
-  const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [selectedTemplate, setSelectedTemplate] = useState('custom');
   const [replyLoading, setReplyLoading] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
@@ -162,6 +163,7 @@ const Reviews = () => {
                 id: review.id,
                 profileId: location.locationId,
                 profileName: location.displayName,
+                fullReviewName: review.name, // Store the full review name for API calls
                 author: review.reviewer.displayName,
                 rating: review.starRating,
                 content: review.comment || '',
@@ -171,7 +173,7 @@ const Reviews = () => {
                 repliedAt: review.reply?.updateTime,
                 sentiment: analyzeSentiment(review.starRating, review.comment || '')
               };
-              console.log(`📍 Frontend: Created review with profileName: "${reviewData.profileName}"`);
+              console.log(`📍 Frontend: Created review with profileName: "${reviewData.profileName}", fullReviewName: "${reviewData.fullReviewName}"`);
               return reviewData;
             });
             
@@ -231,10 +233,11 @@ const Reviews = () => {
       console.log("Sending reply to review:", selectedReview.id);
       
       // Reply to the review using Google Business Profile API
-      await googleBusinessProfileService.replyToReview(
-        `locations/${selectedReview.profileId}/reviews/${selectedReview.id}`, 
-        customReply
-      );
+      // Use the full review name if available, otherwise construct it  
+      const fullReviewName = selectedReview.fullReviewName || `accounts/106433552101751461082/locations/${selectedReview.profileId}/reviews/${selectedReview.id}`;
+      
+      console.log('Reviews: Sending reply with full review name:', fullReviewName);
+      await googleBusinessProfileService.replyToReview(fullReviewName, customReply);
       
       // Update the review state to show it's been replied to
       setReviews(prev => prev.map(r => 
@@ -934,7 +937,7 @@ const Reviews = () => {
                     <SelectValue placeholder="Choose a template" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Custom Reply</SelectItem>
+                    <SelectItem value="custom">Custom Reply</SelectItem>
                     {REPLY_TEMPLATES.map(template => (
                       <SelectItem key={template.id} value={template.id}>
                         {template.name}

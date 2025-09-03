@@ -132,10 +132,14 @@ class ReviewAutomationService {
 
   private async fetchLocationReviews(locationId: string) {
     try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://scale12345-hccmcmf7g3bwbvd0.canadacentral-01.azurewebsites.net';
       const accessToken = googleBusinessProfileService.getAccessToken();
       
-      const response = await fetch(`${backendUrl}/api/locations/${locationId}/reviews`, {
+      console.log('🔍 REVIEWS DEBUG: Backend URL being used:', backendUrl);
+      console.log('🔍 REVIEWS DEBUG: VITE_BACKEND_URL env var:', import.meta.env.VITE_BACKEND_URL);
+      console.log('🔍 REVIEWS DEBUG: Full URL:', `${backendUrl}/api/locations/${locationId}/reviews`);
+      
+      const response = await fetch(`${backendUrl}/api/locations/${locationId}/reviews?_t=${Date.now()}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -254,7 +258,7 @@ Review Text: "${review.comment}"
 Reviewer: ${review.reviewer?.displayName || 'Customer'}
 
 Requirements:
-- Keep it under 200 characters
+- Keep it under 120 words maximum
 - Be professional and thankful
 - Address specific points mentioned in the review if relevant
 - ${review.starRating >= 4 ? 'Express gratitude for the positive feedback' : 'Address concerns professionally and offer to resolve issues'}
@@ -296,13 +300,21 @@ Generate only the reply text, no quotes or extra formatting.`;
   }
 
   private async postReviewReply(locationId: string, reviewName: string, replyText: string): Promise<void> {
-    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://scale12345-hccmcmf7g3bwbvd0.canadacentral-01.azurewebsites.net';
     const accessToken = googleBusinessProfileService.getAccessToken();
     
-    // Extract reviewId from reviewName (format: accounts/.../locations/.../reviews/reviewId)
-    const reviewId = reviewName.split('/').pop();
+    // Extract locationId and reviewId from reviewName (format: accounts/.../locations/locationId/reviews/reviewId)
+    const parts = reviewName.split('/');
+    const extractedLocationId = parts[3]; // Extract location ID from full review name
+    const reviewId = parts[5]; // Extract review ID from full review name
     
-    const response = await fetch(`${backendUrl}/api/locations/${locationId}/reviews/${reviewId}/reply`, {
+    // Use extracted locationId if available, otherwise fall back to provided locationId
+    const finalLocationId = extractedLocationId || locationId;
+    
+    console.log(`🔧 AUTOMATION: Posting reply - locationId: "${finalLocationId}", reviewId: "${reviewId}"`);
+    console.log(`🔧 AUTOMATION: Full review name: "${reviewName}"`);
+    
+    const response = await fetch(`${backendUrl}/api/locations/${finalLocationId}/reviews/${reviewId}/reply`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${accessToken}`,

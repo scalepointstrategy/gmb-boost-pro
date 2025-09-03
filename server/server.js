@@ -9,25 +9,30 @@ import { fileURLToPath } from 'url';
 // Load environment variables
 dotenv.config();
 
-// Production configuration - dynamic and hardcoded values for Azure deployment
-if (process.env.NODE_ENV === 'production' || process.env.PORT) {
-  // Google OAuth credentials (always the same)
-  process.env.GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '52772597205-9ogv54i6sfvucse3jrqj1nl1hlkspcv1.apps.googleusercontent.com';
-  process.env.GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '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';
-  
-  // Dynamic frontend URL detection for Azure Static Web Apps
-  // Priority: Explicit env var > Azure auto-detection > Fallback
-  const frontendUrl = process.env.FRONTEND_URL || 
-                     (process.env.WEBSITE_HOSTNAME && process.env.WEBSITE_HOSTNAME.includes('azurewebsites.net') ? 
-                       'https://polite-wave-08ec8c90f.1.azurestaticapps.net' : 
-                       'https://polite-wave-08ec8c90f.1.azurestaticapps.net');
-  
-  process.env.FRONTEND_URL = frontendUrl;
-  process.env.GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || `${frontendUrl}/auth/google/callback`;
+// Configuration - hardcoded values for all environments
+// Google OAuth credentials (hardcoded for Docker deployment)
+process.env.GOOGLE_CLIENT_ID = '52772597205-9ogv54i6sfvucse3jrqj1nl1hlkspcv1.apps.googleusercontent.com';
+process.env.GOOGLE_CLIENT_SECRET = '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';
+
+// Default configuration for Docker container
+const DEFAULT_FRONTEND_URL = 'http://localhost:3000';
+const DEFAULT_BACKEND_PORT = 5000;
+
+// Set frontend URL based on environment
+if (process.env.NODE_ENV === 'production') {
+  process.env.FRONTEND_URL = process.env.FRONTEND_URL || 'https://polite-wave-08ec8c90f.1.azurestaticapps.net';
+} else {
+  process.env.FRONTEND_URL = process.env.FRONTEND_URL || DEFAULT_FRONTEND_URL;
 }
 
+// Set redirect URI
+process.env.GOOGLE_REDIRECT_URI = `${process.env.FRONTEND_URL}/auth/google/callback`;
+
+// Hardcoded account ID for Google Business Profile API
+const HARDCODED_ACCOUNT_ID = '106433552101751461082';
+
 const app = express();
-const PORT = process.env.PORT || 5002;
+const PORT = process.env.PORT || DEFAULT_BACKEND_PORT;
 
 // Middleware - Allow multiple frontend URLs
 const allowedOrigins = [
@@ -372,7 +377,7 @@ app.post('/api/locations/:locationParam/posts', async (req, res) => {
     } else {
       // Simple locationId format: 456
       locationId = decodedParam;
-      locationName = `accounts/106433552101751461082/locations/${locationId}`;
+      locationName = `accounts/${HARDCODED_ACCOUNT_ID}/locations/${locationId}`;
       console.log('🔍 Received location ID:', locationId);
       console.log('🔍 Generated full location name:', locationName);
     }
@@ -443,7 +448,7 @@ app.post('/api/locations/:locationParam/posts', async (req, res) => {
     
     if (!accountId) {
       console.log('Could not find account ID, using hardcoded account ID as fallback');
-      accountId = '106433552101751461082';
+      accountId = HARDCODED_ACCOUNT_ID;
     }
     
     // Use Google Business Profile API v1 endpoint for creating posts
@@ -568,19 +573,18 @@ app.get('/api/locations/:locationId/posts', async (req, res) => {
     oauth2Client.setCredentials({ access_token: accessToken });
 
     console.log('🔍 Fetching posts for location:', locationId);
-    console.log('🔍 Full location path for posts: accounts/106433552101751461082/locations/' + locationId);
+    console.log('🔍 Full location path for posts: accounts/' + HARDCODED_ACCOUNT_ID + '/locations/' + locationId);
 
     // Use the same approach as successful post creation - try multiple endpoints
     let posts = [];
     let apiUsed = '';
     
-    // Try 5 different API endpoints that work for posts
+    // Based on logs analysis, only the v4 API endpoint works reliably for posts
+    // Prioritize the working endpoint and only fallback to others if necessary
     const endpoints = [
+      `https://mybusiness.googleapis.com/v4/accounts/${HARDCODED_ACCOUNT_ID}/locations/${locationId}/localPosts`, // Working endpoint first
       `https://mybusinessbusinessinformation.googleapis.com/v1/locations/${locationId}/localPosts`,
-      `https://businessprofile.googleapis.com/v1/locations/${locationId}/localPosts`, 
-      `https://mybusinessbusinessinformation.googleapis.com/v1/accounts/106433552101751461082/locations/${locationId}/localPosts`,
-      `https://businessprofile.googleapis.com/v1/accounts/106433552101751461082/locations/${locationId}/localPosts`,
-      `https://mybusiness.googleapis.com/v4/accounts/106433552101751461082/locations/${locationId}/localPosts`
+      `https://businessprofile.googleapis.com/v1/locations/${locationId}/localPosts`
     ];
 
     for (let i = 0; i < endpoints.length; i++) {
@@ -601,8 +605,8 @@ app.get('/api/locations/:locationId/posts', async (req, res) => {
         if (response.ok) {
           const data = await response.json();
           posts = data.localPosts || data.posts || [];
-          apiUsed = `endpoint ${i + 1}`;
-          console.log(`✅ Success with Google Business Posts API (${apiUsed}): Found ${posts.length} posts`);
+          apiUsed = `Google Business v4 API (endpoint ${i + 1})`;
+          console.log(`✅ Success with ${apiUsed}: Found ${posts.length} posts`);
           break;
         } else {
           const errorText = await response.text();
@@ -668,7 +672,7 @@ app.get('/api/locations/:locationId/reviews', async (req, res) => {
     // Use only the working Google Business Profile API endpoint
     // Based on logs, only the v4 API is working properly
     const apiEndpoints = [
-      `https://mybusiness.googleapis.com/v4/accounts/106433552101751461082/locations/${locationId}/reviews`
+      `https://mybusiness.googleapis.com/v4/accounts/${HARDCODED_ACCOUNT_ID}/locations/${locationId}/reviews`
     ];
     
     for (let i = 0; i < apiEndpoints.length; i++) {
@@ -717,15 +721,21 @@ app.get('/api/locations/:locationId/reviews', async (req, res) => {
             console.log(`  Updated: ${review.updateTime}`);
             console.log(`  Review Name: ${review.name}`);
             console.log(`  Comment: ${review.comment?.substring(0, 100)}...`);
-            console.log(`  Has Reply: ${!!review.reply}`);
-            if (review.reply) {
-              console.log(`  Reply Comment: ${review.reply.comment}`);
-              console.log(`  Reply Time: ${review.reply.updateTime}`);
+            // Check both 'reply' and 'reviewReply' fields (Google API inconsistency)
+            const hasReply = !!(review.reply || review.reviewReply);
+            console.log(`  Has Reply: ${hasReply}`);
+            const replyData = review.reply || review.reviewReply;
+            if (replyData) {
+              console.log(`  Reply Comment: ${replyData.comment}`);
+              console.log(`  Reply Time: ${replyData.updateTime}`);
             }
-            console.log(`  Raw Reply Data:`, review.reply || 'null');
+            console.log(`  Raw Reply Data:`, replyData || 'null');
+            if (review.reviewReply && !review.reply) {
+              console.log(`  ⚠️ DETECTED reviewReply field instead of reply field`);
+            }
           });
           
-          // Check for rating format issues and normalize
+          // Check for rating format issues and normalize, and fix reply field inconsistency
           reviews = reviews.map(review => {
             let normalizedRating = review.starRating;
             if (typeof review.starRating === 'string') {
@@ -736,9 +746,17 @@ app.get('/api/locations/:locationId/reviews', async (req, res) => {
               normalizedRating = ratingMap[review.starRating] || 5;
             }
             
+            // Fix reply field inconsistency - Google API sometimes returns 'reviewReply' instead of 'reply'
+            let replyData = review.reply;
+            if (!replyData && review.reviewReply) {
+              replyData = review.reviewReply;
+              console.log(`🔧 Fixed reply field for review ${review.name?.split('/').pop()}: reviewReply → reply`);
+            }
+            
             return {
               ...review,
-              starRating: normalizedRating
+              starRating: normalizedRating,
+              reply: replyData // Ensure consistent field name
             };
           });
           
@@ -754,73 +772,10 @@ app.get('/api/locations/:locationId/reviews', async (req, res) => {
       }
     }
     
-    // If we got some reviews but suspect there are more, try alternative approach
+    // Log the final results
     if (reviews.length > 0) {
-      console.log(`🔍 Found ${reviews.length} reviews. Checking if there are more...`);
-      
-      // Try to get more reviews with pagination and alternative approaches
-      console.log(`🔍 Expected vs Actual: You have 4 reviews on Google Maps, but API returned ${reviews.length}`);
-      
-      if (!nextPageToken && reviews.length > 0) {
-        try {
-          // Try multiple alternative approaches to get missing reviews
-          const alternativeUrls = [
-            `https://mybusiness.googleapis.com/v4/accounts/106433552101751461082/locations/${locationId}/reviews?pageSize=200`,
-            `https://mybusiness.googleapis.com/v4/accounts/106433552101751461082/locations/${locationId}/reviews?pageSize=50&pageToken=`,
-            `https://businessprofile.googleapis.com/v1/accounts/106433552101751461082/locations/${locationId}/reviews?pageSize=100`
-          ];
-          
-          for (let altUrl of alternativeUrls) {
-            console.log(`🔄 Trying alternative request:`, altUrl);
-          
-            const altResponse = await fetch(altUrl, {
-              headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'Content-Type': 'application/json',
-                'Cache-Control': 'no-cache',
-                'Pragma': 'no-cache'
-              }
-            });
-            
-            if (altResponse.ok) {
-              const altData = await altResponse.json();
-              const altReviews = altData.reviews || [];
-              
-              console.log(`🔄 Alternative request found ${altReviews.length} reviews`);
-              
-              if (altReviews.length > reviews.length) {
-                console.log(`✨ Alternative API found MORE reviews! (${altReviews.length} vs ${reviews.length})`);
-                
-                // Log the additional reviews found
-                altReviews.forEach((review, index) => {
-                  console.log(`  Alt Review ${index + 1}: ${review.reviewer?.displayName} - ${review.starRating} - Reply: ${!!review.reply}`);
-                });
-                
-                // Use the better result
-                reviews = altReviews.map(review => {
-                  let normalizedRating = review.starRating;
-                  if (typeof review.starRating === 'string') {
-                    const ratingMap = {
-                      'ONE': 1, 'TWO': 2, 'THREE': 3, 'FOUR': 4, 'FIVE': 5
-                    };
-                    normalizedRating = ratingMap[review.starRating] || 5;
-                  }
-                  return {
-                    ...review,
-                    starRating: normalizedRating
-                  };
-                });
-                apiUsed += ` + Alternative API (${altReviews.length} reviews)`;
-                break; // Found better data, stop trying
-              }
-            } else {
-              console.log(`🔄 Alternative request failed:`, altResponse.status);
-            }
-          }
-        } catch (altError) {
-          console.log('🔍 Alternative requests failed:', altError.message);
-        }
-      }
+      console.log(`🔍 Found ${reviews.length} reviews from ${apiUsed}`);
+      console.log(`🔍 Reviews processing completed - using primary API results`);
     }
     
     // If still no reviews after all attempts, return error
@@ -866,9 +821,22 @@ app.put('/api/locations/:locationId/reviews/:reviewId/reply', async (req, res) =
     const { comment } = req.body;
     const authHeader = req.headers.authorization;
     
+    console.log(`🔍 REVIEW REPLY DEBUG: Received params - locationId: "${locationId}", reviewId: "${reviewId}"`);
+    console.log(`🔍 REVIEW REPLY DEBUG: LocationId type: ${typeof locationId}, ReviewId type: ${typeof reviewId}`);
+    console.log(`🔍 REVIEW REPLY DEBUG: Comment length: ${comment?.length || 0}`);
+    
     // Validation
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({ error: 'Access token required' });
+    }
+    
+    if (!locationId || locationId === 'undefined') {
+      return res.status(400).json({ error: 'Valid location ID is required' });
+    }
+    
+    if (!reviewId || reviewId === 'undefined') {
+      console.error(`❌ REVIEW REPLY ERROR: Review ID is undefined or missing`);
+      return res.status(400).json({ error: 'Valid review ID is required' });
     }
     
     if (!comment || comment.trim().length === 0) {
@@ -880,7 +848,7 @@ app.put('/api/locations/:locationId/reviews/:reviewId/reply', async (req, res) =
     }
 
     const accessToken = authHeader.split(' ')[1];
-    console.log(`Attempting to reply to review ${reviewId} for location ${locationId}`);
+    console.log(`✅ REVIEW REPLY DEBUG: All validations passed - attempting to reply to review ${reviewId} for location ${locationId}`);
 
     let success = false;
     let replyData = null;
@@ -888,8 +856,7 @@ app.put('/api/locations/:locationId/reviews/:reviewId/reply', async (req, res) =
     
     try {
       // Try Google My Business v4 API first with the correct account ID
-      const accountId = '106433552101751461082'; // Use the same account ID as used in reviews fetching
-      const v4ApiUrl = `https://mybusiness.googleapis.com/v4/accounts/${accountId}/locations/${locationId}/reviews/${reviewId}/reply`;
+      const v4ApiUrl = `https://mybusiness.googleapis.com/v4/accounts/${HARDCODED_ACCOUNT_ID}/locations/${locationId}/reviews/${reviewId}/reply`;
       console.log('🔍 Trying My Business v4 Reply API:', v4ApiUrl);
       
       const v4Response = await fetch(v4ApiUrl, {
@@ -1032,7 +999,7 @@ app.get('/api/locations/:locationId/reviews-debug', async (req, res) => {
     
     // Try the basic API call that was working
     try {
-      const basicUrl = `https://mybusiness.googleapis.com/v4/accounts/106433552101751461082/locations/${locationId}/reviews?pageSize=50`;
+      const basicUrl = `https://mybusiness.googleapis.com/v4/accounts/${HARDCODED_ACCOUNT_ID}/locations/${locationId}/reviews?pageSize=50`;
       console.log(`🔎 Testing basic API:`, basicUrl);
       
       const basicResponse = await fetch(basicUrl, {
@@ -1073,7 +1040,7 @@ app.get('/api/locations/:locationId/reviews-debug', async (req, res) => {
     
     for (const pageSize of pageSizes) {
       try {
-        const url = `https://mybusiness.googleapis.com/v4/accounts/106433552101751461082/locations/${locationId}/reviews?pageSize=${pageSize}`;
+        const url = `https://mybusiness.googleapis.com/v4/accounts/${HARDCODED_ACCOUNT_ID}/locations/${locationId}/reviews?pageSize=${pageSize}`;
         const response = await fetch(url, {
           headers: {
             'Authorization': `Bearer ${accessToken}`,
@@ -1163,9 +1130,9 @@ app.get('/api/locations/:locationId/photos', async (req, res) => {
     
     // Try multiple API endpoints for photos/media
     const apiEndpoints = [
-      `https://mybusiness.googleapis.com/v4/accounts/106433552101751461082/locations/${locationId}/media`,
-      `https://businessprofile.googleapis.com/v1/accounts/106433552101751461082/locations/${locationId}/media`,
-      `https://mybusinessbusinessinformation.googleapis.com/v1/accounts/106433552101751461082/locations/${locationId}/media`
+      `https://mybusiness.googleapis.com/v4/accounts/${HARDCODED_ACCOUNT_ID}/locations/${locationId}/media`,
+      `https://businessprofile.googleapis.com/v1/accounts/${HARDCODED_ACCOUNT_ID}/locations/${locationId}/media`,
+      `https://mybusinessbusinessinformation.googleapis.com/v1/accounts/${HARDCODED_ACCOUNT_ID}/locations/${locationId}/media`
     ];
     
     for (let i = 0; i < apiEndpoints.length; i++) {
@@ -1280,7 +1247,7 @@ app.get('/api/locations/:locationId/insights', async (req, res) => {
     const defaultStartDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     
     const reportRequest = {
-      locationNames: [`accounts/106433552101751461082/locations/${locationId}`],
+      locationNames: [`accounts/${HARDCODED_ACCOUNT_ID}/locations/${locationId}`],
       basicRequest: {
         timeRange: {
           startTime: `${startDate || defaultStartDate}T00:00:00Z`,
@@ -1305,7 +1272,7 @@ app.get('/api/locations/:locationId/insights', async (req, res) => {
     const endpoints = [
       'https://businessprofileperformance.googleapis.com/v1/locations:reportInsights',
       'https://businessprofile.googleapis.com/v1/locations:reportInsights', 
-      'https://mybusiness.googleapis.com/v4/accounts/106433552101751461082:reportInsights',
+      `https://mybusiness.googleapis.com/v4/accounts/${HARDCODED_ACCOUNT_ID}:reportInsights`,
       'https://businessprofileperformance.googleapis.com/v1:reportInsights'
     ];
 
@@ -1346,7 +1313,7 @@ app.get('/api/locations/:locationId/insights', async (req, res) => {
       // Try to get basic location info and calculate metrics from available data
       try {
         const locationResponse = await fetch(
-          `https://mybusinessbusinessinformation.googleapis.com/v1/accounts/106433552101751461082/locations/${locationId}?readMask=name,title,storefrontAddress,phoneNumbers,websiteUri,regularHours,metadata`, 
+          `https://mybusinessbusinessinformation.googleapis.com/v1/accounts/${HARDCODED_ACCOUNT_ID}/locations/${locationId}?readMask=name,title,storefrontAddress,phoneNumbers,websiteUri,regularHours,metadata`, 
           {
             headers: {
               'Authorization': `Bearer ${accessToken}`,
@@ -1362,7 +1329,7 @@ app.get('/api/locations/:locationId/insights', async (req, res) => {
           const baseViews = Math.floor(Math.random() * 1000) + 500;
           const simulatedInsights = {
             locationMetrics: [{
-              locationName: `accounts/106433552101751461082/locations/${locationId}`,
+              locationName: `accounts/${HARDCODED_ACCOUNT_ID}/locations/${locationId}`,
               timeZone: 'UTC',
               metricValues: [
                 { metric: 'BUSINESS_VIEWS', totalValue: { value: baseViews.toString() } },
@@ -1387,7 +1354,7 @@ app.get('/api/locations/:locationId/insights', async (req, res) => {
       // Fallback to completely simulated data
       const fallbackInsights = {
         locationMetrics: [{
-          locationName: `accounts/106433552101751461082/locations/${locationId}`,
+          locationName: `accounts/${HARDCODED_ACCOUNT_ID}/locations/${locationId}`,
           timeZone: 'UTC',
           metricValues: [
             { metric: 'BUSINESS_VIEWS', totalValue: { value: '1245' } },
@@ -1456,3 +1423,4 @@ app.listen(PORT, () => {
   console.log(`   GET  /api/locations/:locationId/insights`);
 });
 
+// restart
