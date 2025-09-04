@@ -12,6 +12,7 @@ import Dashboard from "./pages/Dashboard";
 import ProfileDetails from "./pages/ProfileDetails";
 import Posts from "./pages/Posts";
 import Reviews from "./pages/Reviews";
+import AskForReviews from "./pages/AskForReviews";
 import Settings from "./pages/Settings";
 import { AuthProvider } from "./contexts/AuthContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
@@ -56,6 +57,7 @@ const App = () => (
               <Route path="profiles/:profileId" element={<ProfileDetails />} />
               <Route path="posts" element={<Posts />} />
               <Route path="reviews" element={<Reviews />} />
+              <Route path="ask-for-reviews" element={<AskForReviews />} />
               <Route path="settings" element={<Settings />} />
             </Route>
             

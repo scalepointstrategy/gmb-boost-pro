@@ -25,6 +25,7 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
     { label: "Profiles", href: "/dashboard", icon: Building2 },
     { label: "Posts", href: "/dashboard/posts", icon: FileText },
     { label: "Reviews", href: "/dashboard/reviews", icon: Star },
+    { label: "Ask for Reviews", href: "/dashboard/ask-for-reviews", icon: MessageSquarePlus },
     { label: "Settings", href: "/dashboard/settings", icon: Settings },
   ];
 
@@ -83,56 +84,6 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
           </NavLink>
         ))}
 
-        {/* Ask for Reviews Section */}
-        <div className="mt-6">
-          <a 
-            href="https://demo.scalepointstrategy.com/qr"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block"
-          >
-            <div className={cn(
-              "group relative overflow-hidden rounded-xl",
-              "bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-500",
-              "hover:from-emerald-400 hover:via-teal-400 hover:to-cyan-400",
-              "shadow-lg hover:shadow-xl transition-all duration-500",
-              "transform hover:scale-105 hover:-translate-y-1",
-              "animate-pulse hover:animate-none",
-              collapsed ? "p-3" : "p-4"
-            )}>
-              {/* Animated background gradient */}
-              <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              
-              {/* Content */}
-              <div className="relative z-10 flex items-center gap-3">
-                <div className={cn(
-                  "flex-shrink-0",
-                  collapsed ? "mx-auto" : ""
-                )}>
-                  <MessageSquarePlus className={cn(
-                    "h-6 w-6 text-white",
-                    "group-hover:scale-110 group-hover:rotate-12",
-                    "transition-all duration-300"
-                  )} />
-                </div>
-                
-                {!collapsed && (
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-white text-sm mb-1 group-hover:text-white/95 transition-colors">
-                      Ask for Reviews
-                    </h3>
-                    <p className="text-white/80 text-xs leading-tight group-hover:text-white/90 transition-colors">
-                      Generate QR codes for easy reviews
-                    </p>
-                  </div>
-                )}
-              </div>
-              
-              {/* Shine effect on hover */}
-              <div className="absolute -top-2 -right-2 w-4 h-4 bg-white/20 rounded-full opacity-0 group-hover:opacity-100 group-hover:animate-ping transition-all duration-300" />
-            </div>
-          </a>
-        </div>
 
         {/* Audit Tool - Locked */}
         <div className={cn(
