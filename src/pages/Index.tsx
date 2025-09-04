@@ -14,7 +14,7 @@ const Index = () => {
           <nav className="flex items-center justify-between p-6 lg:px-8">
             <div className="flex items-center gap-2">
               <Building2 className="h-8 w-8 text-white" />
-              <span className="text-xl font-bold text-white">GMP BOOST PRO</span>
+              <span className="text-xl font-bold text-white">GMB BOOST PRO</span>
             </div>
             <div className="flex items-center gap-4">
               <Link to="/login">

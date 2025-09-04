@@ -17,11 +17,34 @@ const Dashboard = () => {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-            <p className="text-muted-foreground">Loading your business profiles...</p>
-          </div>
+        <div className="flex items-center justify-center relative">
+          <img 
+            src="/Upgrade plan banner.svg" 
+            alt="Upgrade Plan Banner" 
+            style={{ width: '1100px', height: 'auto' }}
+            className="max-w-full"
+          />
+          {/* Interactive button overlay positioned over the banner button */}
+          <Link 
+            to="/dashboard/settings" 
+            className="absolute"
+            style={{
+              left: '110px', // Position button slightly to the right
+              top: '100%',
+              transform: 'translateY(0%)', // Button positioned below banner edge
+              width: '180px',
+              height: '45px'
+            }}
+          >
+            <Button 
+              className="w-full h-full bg-white hover:bg-gray-100 font-medium text-sm rounded-lg border-0 shadow-lg transition-all duration-200"
+              style={{
+                color: '#1B29CB'
+              }}
+            >
+              Connect Your GBP
+            </Button>
+          </Link>
         </div>
         
         <div className="flex flex-col items-center justify-center py-16 space-y-4">
@@ -53,11 +76,34 @@ const Dashboard = () => {
   if (!isConnected) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-            <p className="text-muted-foreground">Connect your Google Business Profile to get started</p>
-          </div>
+        <div className="flex items-center justify-center relative">
+          <img 
+            src="/Upgrade plan banner.svg" 
+            alt="Upgrade Plan Banner" 
+            style={{ width: '1100px', height: 'auto' }}
+            className="max-w-full"
+          />
+          {/* Interactive button overlay positioned over the banner button */}
+          <Link 
+            to="/dashboard/settings" 
+            className="absolute"
+            style={{
+              left: '110px', // Position button slightly to the right
+              top: '60%',
+              transform: 'translateY(0%)', // Button positioned below banner edge
+              width: '180px',
+              height: '45px'
+            }}
+          >
+            <Button 
+              className="w-full h-full bg-white hover:bg-gray-100 font-medium text-sm rounded-lg border-0 shadow-lg transition-all duration-200"
+              style={{
+                color: '#1B29CB'
+              }}
+            >
+              Connect Your GBP
+            </Button>
+          </Link>
         </div>
         
         <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
@@ -84,14 +130,9 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">
-            Welcome back! Here's an overview of your business profiles.
-          </p>
-        </div>
+
+      {/* Action Button */}
+      <div className="flex justify-end">
         <Link to="/dashboard/posts">
           <Button>
             <Plus className="mr-2 h-4 w-4" />
