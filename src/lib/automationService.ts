@@ -189,7 +189,8 @@ class AutomationService {
         config.businessName,
         category,
         config.keywords, // Now passing array instead of string
-        config.locationName
+        config.locationName,
+        config.websiteUrl
       );
     } catch (error) {
       console.error('🚨 OpenAI content generation failed:', error);
@@ -220,14 +221,21 @@ class AutomationService {
       console.log('🔍 DEBUGGING: Backend URL being used:', backendUrl);
       console.log('🔍 DEBUGGING: VITE_BACKEND_URL env var:', import.meta.env.VITE_BACKEND_URL);
       
+      // Ensure we have a valid URL if call to action is enabled
+      const hasCallToAction = postContent.callToAction && (config.button?.enabled !== false);
+      const callToActionUrl = postContent.callToAction?.url || 
+                             config.button?.customUrl || 
+                             config.websiteUrl || 
+                             'https://maps.google.com'; // Fallback URL
+      
       const postData = {
         languageCode: 'en-US',
         topicType: 'STANDARD',
         summary: postContent.content,
         media: [],
-        callToAction: postContent.callToAction ? {
+        callToAction: hasCallToAction ? {
           actionType: postContent.callToAction.actionType,
-          url: postContent.callToAction.url || config.websiteUrl
+          url: callToActionUrl
         } : undefined
       };
       

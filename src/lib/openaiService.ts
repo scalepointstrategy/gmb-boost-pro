@@ -141,41 +141,85 @@ export class OpenAIService {
     }
   }
 
+  // Smart button selection based on business category
+  private getSmartButtonForCategory(category: string, businessName: string, websiteUrl?: string): { actionType: 'LEARN_MORE' | 'BOOK' | 'ORDER' | 'SHOP' | 'SIGN_UP'; url: string } {
+    const lowerCategory = category.toLowerCase();
+    
+    // Default URL if no website provided
+    const defaultUrl = websiteUrl || `https://www.google.com/search?q=${encodeURIComponent(businessName)}`;
+    
+    // Restaurant/Food - Order button
+    if (lowerCategory.includes('restaurant') || lowerCategory.includes('food') || 
+        lowerCategory.includes('cafe') || lowerCategory.includes('dining') ||
+        lowerCategory.includes('pizza') || lowerCategory.includes('delivery')) {
+      return { actionType: 'ORDER', url: defaultUrl };
+    }
+    
+    // Services that can be booked - Book button  
+    if (lowerCategory.includes('salon') || lowerCategory.includes('spa') || 
+        lowerCategory.includes('beauty') || lowerCategory.includes('health') ||
+        lowerCategory.includes('dental') || lowerCategory.includes('medical') ||
+        lowerCategory.includes('appointment') || lowerCategory.includes('consultation') ||
+        lowerCategory.includes('fitness') || lowerCategory.includes('gym')) {
+      return { actionType: 'BOOK', url: defaultUrl };
+    }
+    
+    // Retail/Shopping - Shop button
+    if (lowerCategory.includes('retail') || lowerCategory.includes('store') || 
+        lowerCategory.includes('shop') || lowerCategory.includes('clothing') ||
+        lowerCategory.includes('fashion') || lowerCategory.includes('jewelry') ||
+        lowerCategory.includes('electronics') || lowerCategory.includes('furniture')) {
+      return { actionType: 'SHOP', url: defaultUrl };
+    }
+    
+    // Education/Training - Sign Up button
+    if (lowerCategory.includes('education') || lowerCategory.includes('training') || 
+        lowerCategory.includes('school') || lowerCategory.includes('academy') ||
+        lowerCategory.includes('course') || lowerCategory.includes('class') ||
+        lowerCategory.includes('learning') || lowerCategory.includes('tuition')) {
+      return { actionType: 'SIGN_UP', url: defaultUrl };
+    }
+    
+    // Default - Learn More
+    return { actionType: 'LEARN_MORE', url: defaultUrl };
+  }
+
   // Hardcoded fallback content templates
-  private getFallbackContent(businessName: string, category: string, keywords: string | string[]): PostContent {
+  private getFallbackContent(businessName: string, category: string, keywords: string | string[], websiteUrl?: string): PostContent {
     const keywordArray = typeof keywords === 'string' 
       ? keywords.split(',').map(k => k.trim()).filter(k => k.length > 0)
       : keywords;
 
+    // Get location display text
+    const locationText = locationName ? ` in ${locationName}` : '';
+    
     const templates = [
-      `🌟 Thank you to all our amazing customers for making ${businessName} what it is today! Your support means everything to us. Come experience our exceptional ${keywordArray.join(' and ')} - we're committed to providing quality service that exceeds your expectations. Visit us today!`,
+      `🌟 Thank you for choosing ${businessName}${locationText}! We specialize in ${keywordArray[0] || category} and are committed to excellence. Visit us today!`,
       
-      `📍 Looking for ${keywordArray[0] || 'quality service'}? ${businessName} is your trusted ${category} destination! We specialize in ${keywordArray.slice(0, 3).join(', ')} and pride ourselves on customer satisfaction. Experience the difference that personalized service makes!`,
+      `📍 Looking for ${keywordArray[0] || category}? ${businessName}${locationText} is here to help! We provide ${keywordArray.slice(0, 2).join(' and ')}. Contact us today!`,
       
-      `💼 At ${businessName}, we believe in building lasting relationships with our community. Our team is dedicated to providing exceptional ${keywordArray[0] || 'service'} with attention to detail. Come discover why customers choose us for ${keywordArray.slice(0, 2).join(' and ')}!`,
+      `💼 ${businessName}${locationText} - your trusted ${category} experts! We offer ${keywordArray[0] || 'quality service'} with ${keywordArray[1] || 'professional care'}. Come see the difference!`,
       
-      `🔥 Exciting things are happening at ${businessName}! We're proud to offer top-quality ${keywordArray[0] || 'service'} with ${keywordArray[1] || 'professional excellence'}. Our experienced team is here to help with all your ${category} needs. Visit us today!`,
+      `🔥 Exciting news from ${businessName}${locationText}! We're proud to offer ${keywordArray[0] || category} services. Experience our ${keywordArray[1] || 'expertise'} today!`,
       
-      `👥 Our team at ${businessName} is dedicated to exceeding your expectations. We combine ${keywordArray[0] || 'quality'} with ${keywordArray[1] || 'professionalism'} to deliver outstanding results. Experience why we're the preferred choice for ${keywordArray[2] || 'reliable service'}!`,
+      `👥 At ${businessName}${locationText}, we exceed expectations! Our ${keywordArray[0] || 'professional'} team delivers ${keywordArray[1] || 'quality'} results. Contact us now!`,
       
-      `✨ What makes ${businessName} special? Our commitment to ${keywordArray[0] || 'excellence'} and ${keywordArray[1] || 'customer care'}! We're passionate about what we do and it shows in every interaction. Stop by and experience the ${businessName} difference!`,
+      `✨ What makes ${businessName}${locationText} special? Our commitment to ${keywordArray[0] || 'excellence'}! Experience our ${keywordArray[1] || 'personalized'} service today.`,
       
-      `💪 Ready for ${keywordArray[0] || 'exceptional service'}? ${businessName} has been proudly serving our community with ${keywordArray.slice(0, 2).join(' and ')}. Our experienced team is here to help you succeed. Contact us today to get started!`,
+      `💪 Ready for ${keywordArray[0] || category}? ${businessName}${locationText} has you covered! We provide ${keywordArray[1] || 'reliable'} solutions. Get started today!`,
       
-      `🎯 Need ${keywordArray[0] || 'professional service'}? Look no further than ${businessName}! We offer comprehensive ${keywordArray.slice(0, 3).join(', ')} solutions tailored to your needs. Let us show you why quality matters!`,
+      `🎯 Need ${keywordArray[0] || category} help? ${businessName}${locationText} offers expert ${keywordArray[1] || 'consultation'}. Let us help you succeed!`,
       
-      `🏆 ${businessName} - where ${keywordArray[0] || 'quality'} meets ${keywordArray[1] || 'service'}! Our dedicated team is committed to providing exceptional ${category} solutions. Join our satisfied customers and experience excellence today!`,
+      `🏆 ${businessName}${locationText} - where ${keywordArray[0] || 'quality'} meets expertise! Join our satisfied customers today.`,
       
-      `🌈 Discover what makes ${businessName} your best choice for ${keywordArray[0] || 'quality service'}! We combine expertise, reliability, and ${keywordArray[1] || 'customer focus'} to deliver results that matter. Visit us and see the difference!`
+      `🌈 Choose ${businessName}${locationText} for ${keywordArray[0] || category}! We deliver ${keywordArray[1] || 'professional'} results that matter. Visit us now!`
     ];
 
     const randomTemplate = templates[Math.floor(Math.random() * templates.length)];
     
     return {
       content: randomTemplate,
-      callToAction: {
-        actionType: 'LEARN_MORE' as const
-      }
+      callToAction: this.getSmartButtonForCategory(category, businessName, websiteUrl)
     };
   }
 
@@ -183,12 +227,13 @@ export class OpenAIService {
     businessName: string,
     category: string,
     keywords: string | string[],
-    locationName?: string
+    locationName?: string,
+    websiteUrl?: string
   ): Promise<PostContent> {
     // Validate inputs
     if (!businessName || businessName.trim() === '') {
       console.warn('⚠️ Business name is required, using fallback content');
-      return this.getFallbackContent('Your Business', category || 'business', keywords || []);
+      return this.getFallbackContent('Your Business', category || 'business', keywords || [], websiteUrl);
     }
 
     if (!this.subscriptionKey || !this.endpoint || !this.deployment || !this.apiVersion) {
@@ -196,7 +241,7 @@ export class OpenAIService {
       console.warn('🎨 Template content is professionally crafted and will work perfectly');
       console.warn('💡 To enable AI-generated content, add your Azure OpenAI configuration to the .env file');
       console.warn('🔗 Set up Azure OpenAI in your Azure portal');
-      return this.getFallbackContent(businessName, category, keywords);
+      return this.getFallbackContent(businessName, category, keywords, websiteUrl);
     }
 
     // Convert keywords to array format if string is provided
@@ -209,18 +254,18 @@ export class OpenAIService {
       ? keywordArray.join(', ')
       : 'quality service, customer satisfaction';
 
-    const prompt = `Create an engaging Google Business Profile post for "${businessName}", a ${category} business${locationName ? ` in ${locationName}` : ''}. 
+    const prompt = `Create an engaging Google Business Profile post for "${businessName}"${locationName ? ` in ${locationName}` : ''}, a ${category} business. 
 
 Key requirements:
 - MUST incorporate these specific keywords naturally: ${keywordText}
-- Use at least 3-5 of these keywords throughout the post
-- Keep it under 120 words maximum
+- Keep it under 100 words maximum (very important!)
 - Make it engaging and professional
 - Include a clear call-to-action
 - Don't use hashtags
 - Write in a conversational tone
-- Highlight what makes this business unique
+- When mentioning location, say "${businessName} in ${locationName}" NOT "${businessName} ${locationName}"
 - Make the keywords feel natural, not forced
+- Be concise and impactful
 
 Generate ONLY the post content, no additional text or formatting.`;
 
@@ -244,14 +289,14 @@ Generate ONLY the post content, no additional text or formatting.`;
           messages: [
             {
               role: 'system',
-              content: 'You are a professional social media content creator specializing in Google Business Profile posts. Generate engaging, keyword-focused content under 120 words maximum.'
+              content: 'You are a professional social media content creator specializing in Google Business Profile posts. Generate engaging, keyword-focused content under 100 words maximum. Always say "BusinessName in City" NOT "BusinessName City".'
             },
             {
               role: 'user',
               content: prompt
             }
           ],
-          max_tokens: 120,
+          max_tokens: 100,
           temperature: 0.7,
         }),
         signal: controller.signal,
@@ -293,18 +338,16 @@ Generate ONLY the post content, no additional text or formatting.`;
       console.log('✅ Content generated successfully with Azure OpenAI');
       console.log('📝 Generated content:', content.substring(0, 100) + '...');
 
-      // Return with a simple call-to-action
+      // Return with smart button selection based on category
       return {
         content,
-        callToAction: {
-          actionType: 'LEARN_MORE' as const
-        }
+        callToAction: this.getSmartButtonForCategory(category, businessName, websiteUrl)
       };
 
     } catch (error) {
       console.error('🚨 Failed to generate content with Azure OpenAI, falling back to template content:', error);
       console.warn('🎨 Using high-quality template content instead - your posts will still be great!');
-      return this.getFallbackContent(businessName, category, keywords);
+      return this.getFallbackContent(businessName, category, keywords, websiteUrl);
     }
   }
 

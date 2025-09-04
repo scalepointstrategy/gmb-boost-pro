@@ -199,7 +199,8 @@ const ProfileDetails = () => {
             id: location.locationId,
             name: location.displayName,
             categories: location.categories.map(c => c.name),
-            websiteUri: location.websiteUrl
+            websiteUri: location.websiteUrl,
+            address: location.address
           }} />
         </TabsContent>
         

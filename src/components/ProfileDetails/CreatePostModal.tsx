@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Upload, X, Building2 } from "lucide-react";
+import { CalendarIcon, Upload, X, Building2, MousePointer } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -47,6 +47,10 @@ const CreatePostModal = ({ open, onOpenChange, onSubmit, profileId, availablePro
   const [image, setImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
   const [loading, setLoading] = useState(false);
+  
+  // Button options state
+  const [buttonType, setButtonType] = useState<string>("none");
+  const [buttonUrl, setButtonUrl] = useState("");
 
   // Update selectedProfileId when profileId prop changes
   useEffect(() => {
@@ -104,7 +108,11 @@ const CreatePostModal = ({ open, onOpenChange, onSubmit, profileId, availablePro
         content: content.trim(),
         scheduledAt: scheduleTime?.toISOString(),
         image,
-        status: scheduleType === "now" ? "published" : "scheduled"
+        status: scheduleType === "now" ? "published" : "scheduled",
+        button: buttonType !== "none" ? {
+          type: buttonType,
+          url: buttonUrl
+        } : null
       };
 
       await onSubmit(postData);
@@ -117,6 +125,8 @@ const CreatePostModal = ({ open, onOpenChange, onSubmit, profileId, availablePro
       setCustomTime("");
       setImage(null);
       setImagePreview("");
+      setButtonType("none");
+      setButtonUrl("");
     } catch (error) {
       console.error("Error creating post:", error);
     } finally {
@@ -215,6 +225,46 @@ const CreatePostModal = ({ open, onOpenChange, onSubmit, profileId, availablePro
               </div>
             )}
           </div>
+
+          {/* Button Options */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <MousePointer className="h-4 w-4" />
+              Add Button (Optional)
+            </Label>
+            <Select value={buttonType} onValueChange={setButtonType}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select button type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No Button</SelectItem>
+                <SelectItem value="book">Book</SelectItem>
+                <SelectItem value="order">Order Online</SelectItem>
+                <SelectItem value="buy">Buy</SelectItem>
+                <SelectItem value="learn_more">Learn More</SelectItem>
+                <SelectItem value="sign_up">Sign Up</SelectItem>
+                <SelectItem value="call">Call Now</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Button URL */}
+          {buttonType !== "none" && (
+            <div className="space-y-2">
+              <Label htmlFor="buttonUrl">Button URL</Label>
+              <Input
+                id="buttonUrl"
+                type="url"
+                placeholder="https://example.com"
+                value={buttonUrl}
+                onChange={(e) => setButtonUrl(e.target.value)}
+                required={buttonType !== "none"}
+              />
+              <div className="text-xs text-muted-foreground">
+                Where should the button redirect when clicked?
+              </div>
+            </div>
+          )}
 
           {/* Schedule Options */}
           <div className="space-y-2">

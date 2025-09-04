@@ -11,6 +11,11 @@ export interface AutoPostingConfig {
     time: string; // Format: "HH:MM"
     customTimes?: string[]; // For custom frequency
   };
+  button?: {
+    enabled: boolean;
+    type: 'auto' | 'book' | 'order' | 'buy' | 'learn_more' | 'sign_up' | 'call';
+    customUrl?: string; // Custom URL when not using websiteUrl
+  };
   lastPost?: string; // ISO timestamp
   nextPost?: string; // ISO timestamp
   stats: {
@@ -285,6 +290,10 @@ class AutomationStorage {
       schedule: {
         frequency: 'alternative',
         time: '09:00',
+      },
+      button: {
+        enabled: true,
+        type: 'auto', // Auto-select button based on business category
       },
       stats: {
         totalPosts: 0,

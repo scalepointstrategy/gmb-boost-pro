@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Clock, Zap, Calendar, BarChart3, Play, Pause, TestTube, Tags, Plus, X, MapPin, Building, Hash, Tag, Edit, RefreshCw, Trash2 } from 'lucide-react';
+import { Clock, Zap, Calendar, BarChart3, Play, Pause, TestTube, Tags, Plus, X, MapPin, Building, Hash, Tag, Edit, RefreshCw, Trash2, Sparkles, MousePointer } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { automationStorage, type AutoPostingConfig, type AutoPostingStats } from '@/lib/automationStorage';
 import { automationService } from '@/lib/automationService';
@@ -21,6 +21,13 @@ interface AutoPostingTabProps {
     name: string;
     categories?: string[];
     websiteUri?: string;
+    address?: {
+      addressLines: string[];
+      locality: string;
+      administrativeArea: string;
+      postalCode: string;
+      countryCode: string;
+    };
   };
 }
 
@@ -33,64 +40,75 @@ export function AutoPostingTab({ location }: AutoPostingTabProps) {
   const [newKeyword, setNewKeyword] = useState('');
   const [keywords, setKeywords] = useState<string[]>([]);
 
-  // Generate location + category based keywords
+  // Smart keyword filtering to avoid generic terms
+  const getGenericKeywordBlacklist = () => [
+    'quality service', 'customer satisfaction', 'professional', 'reliable', 'trusted',
+    'excellent experience', 'local business', 'community', 'best service',
+    'development', 'quality', 'customer', 'service', 'professional', 'reliable',
+    'trusted', 'excellent', 'experience', 'local', 'business', 'community',
+    'best', 'good', 'great', 'amazing', 'awesome', 'top', 'leading', 'premier',
+    'expert', 'specialists', 'solutions', 'services', 'company', 'corporation',
+    'inc', 'llc', 'ltd', 'limited', 'pvt', 'private', 'consultant', 'consulting'
+  ];
+
+  // Generate business name + city keywords only
   const generateDefaultKeywords = () => {
     const keywords: string[] = [];
+    const blacklist = getGenericKeywordBlacklist();
     
-    // Location-based keywords
+    // Business name keywords (prioritize these)
     if (location.name) {
-      const locationParts = location.name.toLowerCase().split(' ');
-      keywords.push(`${location.name}`);
-      locationParts.forEach(part => {
-        if (part.length > 2) {
+      keywords.push(location.name);
+      const nameParts = location.name.toLowerCase().split(/[\s\.,\-_]+/);
+      nameParts.forEach(part => {
+        if (part.length > 2 && !blacklist.includes(part.toLowerCase())) {
           keywords.push(part);
         }
       });
     }
     
-    // Category-based keywords
-    if (location.categories && location.categories.length > 0) {
-      location.categories.forEach(category => {
-        keywords.push(category.toLowerCase());
-        
-        // Add related keywords based on category
-        const categoryKeywords = getCategoryKeywords(category);
-        keywords.push(...categoryKeywords);
-      });
+    // Add ONLY city name from location
+    if (location.address && location.address.locality) {
+      keywords.push(location.address.locality);
+      
+      // Add business name + city combination
+      if (location.name) {
+        keywords.push(`${location.name} ${location.address.locality}`);
+      }
     }
     
-    // Add general business keywords
-    keywords.push(
-      'quality service',
-      'customer satisfaction',
-      'professional',
-      'reliable',
-      'trusted',
-      'excellent experience',
-      'local business',
-      'community',
-      'best service'
-    );
-    
-    return [...new Set(keywords)]; // Remove duplicates
+    // Filter out any remaining generic keywords and return unique ones
+    return [...new Set(keywords.filter(keyword => 
+      !blacklist.includes(keyword.toLowerCase().trim())
+    ))];
   };
   
   const getCategoryKeywords = (category: string): string[] => {
+    const blacklist = getGenericKeywordBlacklist();
+    
+    // More specific, non-generic category keywords
     const categoryMap: Record<string, string[]> = {
-      'restaurant': ['food', 'dining', 'cuisine', 'delicious', 'fresh ingredients', 'chef special'],
-      'hotel': ['accommodation', 'comfortable stay', 'hospitality', 'guest services', 'relaxation'],
-      'retail': ['shopping', 'products', 'deals', 'quality items', 'customer service'],
-      'service': ['professional service', 'expertise', 'solutions', 'consultation'],
-      'health': ['healthcare', 'wellness', 'medical', 'treatment', 'care'],
-      'beauty': ['beauty services', 'styling', 'treatments', 'relaxation', 'professional'],
-      'automotive': ['car service', 'automotive repair', 'maintenance', 'reliable service'],
-      'education': ['learning', 'education', 'training', 'knowledge', 'development'],
+      'restaurant': ['food', 'dining', 'cuisine', 'menu', 'chef', 'kitchen'],
+      'hotel': ['accommodation', 'rooms', 'hospitality', 'booking', 'stay'],
+      'retail': ['shopping', 'store', 'products', 'merchandise'],
+      'health': ['healthcare', 'wellness', 'medical', 'treatment', 'clinic'],
+      'beauty': ['salon', 'styling', 'treatments', 'spa'],
+      'automotive': ['auto', 'repair', 'maintenance', 'garage'],
+      'education': ['school', 'training', 'classes', 'academy'],
+      'legal': ['law', 'attorney', 'legal', 'lawyer'],
+      'finance': ['financial', 'accounting', 'tax', 'investment'],
+      'technology': ['tech', 'IT', 'software', 'digital'],
+      'construction': ['building', 'renovation', 'contractor'],
+      'fitness': ['gym', 'workout', 'fitness', 'training'],
     };
     
     const lowerCategory = category.toLowerCase();
     for (const [key, keywords] of Object.entries(categoryMap)) {
       if (lowerCategory.includes(key)) {
-        return keywords;
+        // Filter out any generic keywords from the category results
+        return keywords.filter(keyword => 
+          !blacklist.includes(keyword.toLowerCase().trim())
+        );
       }
     }
     return [];
@@ -298,17 +316,42 @@ export function AutoPostingTab({ location }: AutoPostingTabProps) {
   };
 
   const addKeyword = () => {
-    if (newKeyword.trim() && !keywords.includes(newKeyword.trim())) {
-      const updatedKeywords = [...keywords, newKeyword.trim()];
-      setKeywords(updatedKeywords);
-      updateKeywordsInConfig(updatedKeywords);
-      setNewKeyword('');
+    const trimmedKeyword = newKeyword.trim();
+    const blacklist = getGenericKeywordBlacklist();
+    
+    if (!trimmedKeyword) return;
+    
+    // Check if keyword is generic
+    if (blacklist.includes(trimmedKeyword.toLowerCase())) {
       toast({
-        title: "Keyword Added! ✅",
-        description: `Added "${newKeyword.trim()}" to your keywords`,
-        duration: 2000,
+        title: "Generic Keyword Avoided",
+        description: `"${trimmedKeyword}" is too generic. Try using your business name or location instead.`,
+        variant: "destructive",
+        duration: 4000,
       });
+      return;
     }
+    
+    // Check if keyword already exists
+    if (keywords.includes(trimmedKeyword)) {
+      toast({
+        title: "Keyword Already Exists",
+        description: `"${trimmedKeyword}" is already in your keywords.`,
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
+    
+    const updatedKeywords = [...keywords, trimmedKeyword];
+    setKeywords(updatedKeywords);
+    updateKeywordsInConfig(updatedKeywords);
+    setNewKeyword('');
+    toast({
+      title: "Keyword Added! ✅",
+      description: `Added "${trimmedKeyword}" to your keywords`,
+      duration: 2000,
+    });
   };
   
   const removeKeyword = (keywordToRemove: string) => {
@@ -342,9 +385,34 @@ export function AutoPostingTab({ location }: AutoPostingTabProps) {
     updateKeywordsInConfig(defaultKeywords);
     toast({
       title: "Keywords Generated! 🎯",
-      description: "Default keywords have been generated based on your location and categories.",
+      description: "Smart keywords generated focusing on your business name and location.",
       duration: 3000,
     });
+  };
+
+  const cleanUpGenericKeywords = () => {
+    const blacklist = getGenericKeywordBlacklist();
+    const cleanedKeywords = keywords.filter(keyword => 
+      !blacklist.includes(keyword.toLowerCase().trim())
+    );
+    
+    const removedCount = keywords.length - cleanedKeywords.length;
+    
+    if (removedCount > 0) {
+      setKeywords(cleanedKeywords);
+      updateKeywordsInConfig(cleanedKeywords);
+      toast({
+        title: "Keywords Cleaned! 🧹",
+        description: `Removed ${removedCount} generic keyword${removedCount > 1 ? 's' : ''}.`,
+        duration: 3000,
+      });
+    } else {
+      toast({
+        title: "All Good! ✅",
+        description: "No generic keywords found to remove.",
+        duration: 2000,
+      });
+    }
   };
 
   const handleTestNow = async () => {
@@ -422,29 +490,7 @@ export function AutoPostingTab({ location }: AutoPostingTabProps) {
     }
   };
 
-  // Computed keyword arrays for the UI
-  const locationKeywords = React.useMemo(() => {
-    const defaultKeywords = generateDefaultKeywords();
-    return defaultKeywords.filter(keyword => {
-      if (location.name && location.name.toLowerCase().includes(keyword.toLowerCase())) return true;
-      if (location.name) {
-        const locationParts = location.name.toLowerCase().split(' ');
-        return locationParts.some(part => part === keyword.toLowerCase());
-      }
-      return false;
-    });
-  }, [location.name]);
-
-  const categoryKeywords = React.useMemo(() => {
-    const defaultKeywords = generateDefaultKeywords();
-    const locationWords = location.name ? location.name.toLowerCase().split(' ') : [];
-    return defaultKeywords.filter(keyword => {
-      // Filter out location words, keep only category-related keywords
-      return !locationWords.includes(keyword.toLowerCase()) && 
-             !location.name?.toLowerCase().includes(keyword.toLowerCase());
-    });
-  }, [location.categories, location.name]);
-
+  // Computed custom keywords for the UI
   const customKeywords = React.useMemo(() => {
     const allDefaultKeywords = generateDefaultKeywords();
     return keywords.filter(keyword => !allDefaultKeywords.includes(keyword));
@@ -582,37 +628,40 @@ export function AutoPostingTab({ location }: AutoPostingTabProps) {
               Keywords for Content Generation
             </Label>
             <Tabs defaultValue="all" className="w-full mt-2">
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="all">All Keywords</TabsTrigger>
-                <TabsTrigger value="location">Location</TabsTrigger>
-                <TabsTrigger value="category">Category</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="all">Keywords</TabsTrigger>
                 <TabsTrigger value="custom">Custom</TabsTrigger>
               </TabsList>
 
               {/* All Keywords Tab */}
               <TabsContent value="all" className="space-y-4">
                 <div className="flex flex-wrap gap-2 p-4 bg-gray-50 rounded-lg border min-h-[120px]">
-                  {keywords.map((keyword, index) => (
-                    <div key={index} className="flex items-center gap-1">
-                      <Badge 
-                        variant={locationKeywords.includes(keyword) ? "default" : 
-                                categoryKeywords.includes(keyword) ? "secondary" : "outline"}
-                        className="flex items-center gap-1"
-                      >
-                        {keyword}
-                        <button
-                          type="button"
-                          onClick={() => removeKeyword(keyword)}
-                          disabled={!config.enabled}
-                          className="ml-1 hover:bg-red-500 hover:text-white rounded-full p-0.5 transition-colors"
+                  {keywords.map((keyword, index) => {
+                    const defaultKeywords = generateDefaultKeywords();
+                    const isAutoGenerated = defaultKeywords.includes(keyword);
+                    
+                    return (
+                      <div key={index} className="flex items-center gap-1">
+                        <Badge 
+                          variant={isAutoGenerated ? "default" : "outline"}
+                          className="flex items-center gap-1"
                         >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    </div>
-                  ))}
+                          {isAutoGenerated && <Hash className="h-3 w-3" />}
+                          {keyword}
+                          <button
+                            type="button"
+                            onClick={() => removeKeyword(keyword)}
+                            disabled={!config.enabled}
+                            className="ml-1 hover:bg-red-500 hover:text-white rounded-full p-0.5 transition-colors"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      </div>
+                    );
+                  })}
                   {keywords.length === 0 && (
-                    <p className="text-muted-foreground text-sm">No keywords added yet. Use other tabs to add keywords.</p>
+                    <p className="text-muted-foreground text-sm">No keywords added yet. Click "Generate Keywords" to auto-populate based on your business profile.</p>
                   )}
                 </div>
                 <div className="flex gap-2">
@@ -624,7 +673,17 @@ export function AutoPostingTab({ location }: AutoPostingTabProps) {
                     disabled={!config.enabled}
                   >
                     <RefreshCw className="h-4 w-4 mr-1" />
-                    Reset to Defaults
+                    Generate Keywords
+                  </Button>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={cleanUpGenericKeywords}
+                    disabled={!config.enabled}
+                  >
+                    <Sparkles className="h-4 w-4 mr-1" />
+                    Clean Generic
                   </Button>
                   <Button 
                     type="button" 
@@ -637,61 +696,8 @@ export function AutoPostingTab({ location }: AutoPostingTabProps) {
                     Clear All
                   </Button>
                 </div>
-              </TabsContent>
-
-              {/* Location Keywords Tab */}
-              <TabsContent value="location" className="space-y-4">
-                <div className="flex flex-wrap gap-2 p-4 bg-blue-50 rounded-lg border min-h-[120px]">
-                  {locationKeywords.map((keyword, index) => (
-                    <div key={index} className="flex items-center gap-1">
-                      <Badge variant="default" className="flex items-center gap-1">
-                        <MapPin className="h-3 w-3" />
-                        {keyword}
-                        <button
-                          type="button"
-                          onClick={() => removeKeyword(keyword)}
-                          disabled={!config.enabled}
-                          className="ml-1 hover:bg-red-500 hover:text-white rounded-full p-0.5 transition-colors"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    </div>
-                  ))}
-                  {locationKeywords.length === 0 && (
-                    <p className="text-muted-foreground text-sm">No location-based keywords. Check your business location details.</p>
-                  )}
-                </div>
                 <p className="text-sm text-muted-foreground">
-                  These keywords are automatically generated based on your business location and can be edited.
-                </p>
-              </TabsContent>
-
-              {/* Category Keywords Tab */}
-              <TabsContent value="category" className="space-y-4">
-                <div className="flex flex-wrap gap-2 p-4 bg-purple-50 rounded-lg border min-h-[120px]">
-                  {categoryKeywords.map((keyword, index) => (
-                    <div key={index} className="flex items-center gap-1">
-                      <Badge variant="secondary" className="flex items-center gap-1">
-                        <Tag className="h-3 w-3" />
-                        {keyword}
-                        <button
-                          type="button"
-                          onClick={() => removeKeyword(keyword)}
-                          disabled={!config.enabled}
-                          className="ml-1 hover:bg-red-500 hover:text-white rounded-full p-0.5 transition-colors"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    </div>
-                  ))}
-                  {categoryKeywords.length === 0 && (
-                    <p className="text-muted-foreground text-sm">No category-based keywords. Check your business categories.</p>
-                  )}
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  These keywords are automatically generated based on your business categories and related services.
+                  Smart keyword generation focuses on your business name ({location.name}), location ({location.address?.locality}, {location.address?.administrativeArea}), and specific categories while filtering out generic terms like "quality service", "professional", etc.
                 </p>
               </TabsContent>
 
@@ -745,6 +751,96 @@ export function AutoPostingTab({ location }: AutoPostingTabProps) {
                 </p>
               </TabsContent>
             </Tabs>
+          </div>
+
+          <Separator />
+
+          {/* Button Configuration */}
+          <div>
+            <Label className="flex items-center gap-2">
+              <MousePointer className="h-4 w-4" />
+              Post Button Settings
+            </Label>
+            <div className="space-y-3 mt-2">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={config.button?.enabled ?? true}
+                  onCheckedChange={(enabled) => saveConfiguration({
+                    button: { ...config.button, enabled, type: config.button?.type || 'auto' }
+                  })}
+                  disabled={!config.enabled}
+                />
+                <span className="text-sm font-medium">
+                  Add buttons to posts
+                </span>
+              </div>
+              
+              {config.button?.enabled && (
+                <div className="space-y-3 ml-6">
+                  <div>
+                    <Label htmlFor="buttonType">Button Type</Label>
+                    <Select
+                      value={config.button?.type || 'auto'}
+                      onValueChange={(value: 'auto' | 'book' | 'order' | 'buy' | 'learn_more' | 'sign_up' | 'call') => 
+                        saveConfiguration({
+                          button: { ...config.button, enabled: config.button?.enabled ?? true, type: value }
+                        })
+                      }
+                      disabled={!config.enabled}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="auto">🎯 Smart Selection (Recommended)</SelectItem>
+                        <SelectItem value="book">📅 Book</SelectItem>
+                        <SelectItem value="order">🍽️ Order Online</SelectItem>
+                        <SelectItem value="buy">🛒 Buy</SelectItem>
+                        <SelectItem value="learn_more">ℹ️ Learn More</SelectItem>
+                        <SelectItem value="sign_up">✍️ Sign Up</SelectItem>
+                        <SelectItem value="call">📞 Call Now</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {config.button?.type !== 'auto' && (
+                    <div>
+                      <Label htmlFor="buttonUrl">Button URL (Optional)</Label>
+                      <Input
+                        id="buttonUrl"
+                        type="url"
+                        placeholder={config.websiteUrl || "https://example.com"}
+                        value={config.button?.customUrl || ''}
+                        onChange={(e) => saveConfiguration({
+                          button: { ...config.button, enabled: config.button?.enabled ?? true, type: config.button?.type || 'learn_more', customUrl: e.target.value }
+                        })}
+                        disabled={!config.enabled}
+                      />
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Leave empty to use website URL: {config.websiteUrl || 'Not set'}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="text-xs text-muted-foreground bg-blue-50 p-3 rounded-lg">
+                    {config.button?.type === 'auto' ? (
+                      <div>
+                        <strong>🎯 Smart Selection:</strong> Automatically chooses the best button based on your business category:
+                        <ul className="mt-1 ml-4 list-disc">
+                          <li>Restaurants → Order Online</li>
+                          <li>Salons/Health → Book Appointment</li>
+                          <li>Retail → Shop Now</li>
+                          <li>Education → Sign Up</li>
+                          <li>Others → Learn More</li>
+                        </ul>
+                      </div>
+                    ) : (
+                      `All posts will include a "${config.button?.type?.replace('_', ' ')}" button that redirects to your specified URL.`
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           <Separator />
