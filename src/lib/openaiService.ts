@@ -184,8 +184,8 @@ export class OpenAIService {
     return { actionType: 'LEARN_MORE', url: defaultUrl };
   }
 
-  // Hardcoded fallback content templates
-  private getFallbackContent(businessName: string, category: string, keywords: string | string[], websiteUrl?: string): PostContent {
+  // Improved fallback content with more variety and recent post tracking
+  private getFallbackContent(businessName: string, category: string, keywords: string | string[], locationName?: string, websiteUrl?: string): PostContent {
     const keywordArray = typeof keywords === 'string' 
       ? keywords.split(',').map(k => k.trim()).filter(k => k.length > 0)
       : keywords;
@@ -193,34 +193,116 @@ export class OpenAIService {
     // Get location display text
     const locationText = locationName ? ` in ${locationName}` : '';
     
-    const templates = [
-      `🌟 Thank you for choosing ${businessName}${locationText}! We specialize in ${keywordArray[0] || category} and are committed to excellence. Visit us today!`,
+    // Check recent posts to avoid repetition
+    const recentPosts = this.getRecentPosts();
+    const now = Date.now();
+    const currentHour = new Date().getHours();
+    const dayOfWeek = new Date().getDay();
+    
+    const diverseTemplates = [
+      // Success stories
+      `Join the growing number of satisfied customers choosing ${businessName}${locationText}! Our expertise in ${keywordArray[0] || category} speaks for itself. Experience the difference today!`,
       
-      `📍 Looking for ${keywordArray[0] || category}? ${businessName}${locationText} is here to help! We provide ${keywordArray.slice(0, 2).join(' and ')}. Contact us today!`,
+      // Problem solving
+      `Struggling with ${keywordArray[0] || category}? ${businessName}${locationText} has the solution! We understand your needs and deliver results that exceed expectations.`,
       
-      `💼 ${businessName}${locationText} - your trusted ${category} experts! We offer ${keywordArray[0] || 'quality service'} with ${keywordArray[1] || 'professional care'}. Come see the difference!`,
+      // Quality focus
+      `Quality matters at ${businessName}${locationText}! We're passionate about ${keywordArray[0] || category} and dedicated to delivering excellence every time. See why customers trust us!`,
       
-      `🔥 Exciting news from ${businessName}${locationText}! We're proud to offer ${keywordArray[0] || category} services. Experience our ${keywordArray[1] || 'expertise'} today!`,
+      // Community connection
+      `Proud to serve ${locationName || 'our community'}! ${businessName} brings ${keywordArray[0] || 'professional'} ${category} services right to your neighborhood. Contact us today!`,
       
-      `👥 At ${businessName}${locationText}, we exceed expectations! Our ${keywordArray[0] || 'professional'} team delivers ${keywordArray[1] || 'quality'} results. Contact us now!`,
+      // Innovation angle
+      `Discover a better way with ${businessName}${locationText}! We combine ${keywordArray[0] || 'modern'} approaches with ${keywordArray[1] || 'personal'} attention for outstanding results.`,
       
-      `✨ What makes ${businessName}${locationText} special? Our commitment to ${keywordArray[0] || 'excellence'}! Experience our ${keywordArray[1] || 'personalized'} service today.`,
+      // Experience highlight
+      `What sets ${businessName}${locationText} apart? Our commitment to ${keywordArray[0] || 'exceptional'} ${category} services and genuine customer care. Experience it yourself!`,
       
-      `💪 Ready for ${keywordArray[0] || category}? ${businessName}${locationText} has you covered! We provide ${keywordArray[1] || 'reliable'} solutions. Get started today!`,
+      // Results oriented
+      `Get results that matter with ${businessName}${locationText}! We specialize in ${keywordArray[0] || category} solutions that make a real difference. Ready to get started?`,
       
-      `🎯 Need ${keywordArray[0] || category} help? ${businessName}${locationText} offers expert ${keywordArray[1] || 'consultation'}. Let us help you succeed!`,
+      // Trust building
+      `Trust ${businessName}${locationText} for all your ${category} needs! Our ${keywordArray[0] || 'reliable'} service and ${keywordArray[1] || 'professional'} approach deliver every time.`,
       
-      `🏆 ${businessName}${locationText} - where ${keywordArray[0] || 'quality'} meets expertise! Join our satisfied customers today.`,
+      // Value proposition
+      `Why choose ${businessName}${locationText}? We deliver ${keywordArray[0] || 'outstanding'} value through ${keywordArray[1] || 'expert'} ${category} services. Find out more today!`,
       
-      `🌈 Choose ${businessName}${locationText} for ${keywordArray[0] || category}! We deliver ${keywordArray[1] || 'professional'} results that matter. Visit us now!`
+      // Customer focused
+      `Your ${category} goals matter to us at ${businessName}${locationText}! We provide ${keywordArray[0] || 'personalized'} solutions with ${keywordArray[1] || 'exceptional'} care.`,
+      
+      // Expertise angle
+      `Looking for ${category} expertise? ${businessName}${locationText} brings years of experience in ${keywordArray[0] || 'professional'} service delivery. Let us help you succeed!`,
+      
+      // Unique approach
+      `At ${businessName}${locationText}, we do ${category} differently! Our focus on ${keywordArray[0] || 'quality'} and ${keywordArray[1] || 'customer satisfaction'} sets us apart.`,
+      
+      // Invitation style
+      `Ready to experience excellence? Visit ${businessName}${locationText} for ${keywordArray[0] || 'professional'} ${category} services that truly make a difference!`,
+      
+      // Achievement focused
+      `Celebrating another successful ${category} project! ${businessName}${locationText} continues to deliver ${keywordArray[0] || 'outstanding'} results for our valued customers.`,
+      
+      // Future oriented
+      `Building your future starts here! ${businessName}${locationText} provides ${keywordArray[0] || 'innovative'} ${category} solutions for ${keywordArray[1] || 'lasting'} success.`
     ];
 
-    const randomTemplate = templates[Math.floor(Math.random() * templates.length)];
+    // Filter out recently used templates to ensure variety
+    const availableTemplates = diverseTemplates.filter((template, index) => {
+      const recentlyUsed = recentPosts.some(post => 
+        post.templateIndex === index && 
+        (now - post.timestamp < 24 * 60 * 60 * 1000) // Within last 24 hours
+      );
+      return !recentlyUsed;
+    });
+    
+    // If all templates were used recently, use all templates but add time-based selection
+    const templatePool = availableTemplates.length > 0 ? availableTemplates : diverseTemplates;
+    
+    // Use time-based selection for additional randomness
+    const timeBasedIndex = (currentHour + dayOfWeek + now % 100) % templatePool.length;
+    const selectedTemplate = templatePool[timeBasedIndex];
+    
+    // Find the original index of selected template
+    const originalIndex = diverseTemplates.indexOf(selectedTemplate);
+    
+    // Store this post to avoid immediate repetition
+    this.storeRecentPost(originalIndex);
+    
+    console.log(`📝 Using fallback template #${originalIndex + 1} (${availableTemplates.length}/${diverseTemplates.length} available)`);
     
     return {
-      content: randomTemplate,
+      content: selectedTemplate,
       callToAction: this.getSmartButtonForCategory(category, businessName, websiteUrl)
     };
+  }
+
+  // Track recent posts to avoid repetition
+  private getRecentPosts(): Array<{templateIndex: number, timestamp: number}> {
+    try {
+      const stored = localStorage.getItem('gmp_recent_fallback_posts');
+      if (!stored) return [];
+      const posts = JSON.parse(stored);
+      const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
+      // Filter out posts older than 24 hours
+      return posts.filter((post: any) => post.timestamp > oneDayAgo);
+    } catch {
+      return [];
+    }
+  }
+
+  private storeRecentPost(templateIndex: number): void {
+    try {
+      const recentPosts = this.getRecentPosts();
+      recentPosts.push({
+        templateIndex,
+        timestamp: Date.now()
+      });
+      // Keep only last 10 posts to prevent storage bloat
+      const trimmed = recentPosts.slice(-10);
+      localStorage.setItem('gmp_recent_fallback_posts', JSON.stringify(trimmed));
+    } catch (error) {
+      console.warn('Failed to store recent post data:', error);
+    }
   }
 
   async generatePostContent(
@@ -233,7 +315,7 @@ export class OpenAIService {
     // Validate inputs
     if (!businessName || businessName.trim() === '') {
       console.warn('⚠️ Business name is required, using fallback content');
-      return this.getFallbackContent('Your Business', category || 'business', keywords || [], websiteUrl);
+      return this.getFallbackContent('Your Business', category || 'business', keywords || [], locationName, websiteUrl);
     }
 
     if (!this.subscriptionKey || !this.endpoint || !this.deployment || !this.apiVersion) {
@@ -241,7 +323,7 @@ export class OpenAIService {
       console.warn('🎨 Template content is professionally crafted and will work perfectly');
       console.warn('💡 To enable AI-generated content, add your Azure OpenAI configuration to the .env file');
       console.warn('🔗 Set up Azure OpenAI in your Azure portal');
-      return this.getFallbackContent(businessName, category, keywords, websiteUrl);
+      return this.getFallbackContent(businessName, category, keywords, locationName, websiteUrl);
     }
 
     // Convert keywords to array format if string is provided
@@ -254,20 +336,48 @@ export class OpenAIService {
       ? keywordArray.join(', ')
       : 'quality service, customer satisfaction';
 
-    const prompt = `Create an engaging Google Business Profile post for "${businessName}"${locationName ? ` in ${locationName}` : ''}, a ${category} business. 
-
-Key requirements:
-- MUST incorporate these specific keywords naturally: ${keywordText}
-- Keep it under 100 words maximum (very important!)
-- Make it engaging and professional
-- Include a clear call-to-action
-- Don't use hashtags
-- Write in a conversational tone
-- When mentioning location, say "${businessName} in ${locationName}" NOT "${businessName} ${locationName}"
-- Make the keywords feel natural, not forced
-- Be concise and impactful
-
-Generate ONLY the post content, no additional text or formatting.`;
+    // Create diverse prompts for variety
+    const currentTime = new Date().getHours();
+    const dayOfWeek = new Date().getDay();
+    const randomSeed = Date.now() % 10;
+    
+    const promptVariations = [
+      // Customer-focused angle
+      `Write an engaging post for ${businessName}${locationName ? ` in ${locationName}` : ''} that focuses on customer benefits. Business type: ${category}. Include these keywords naturally: ${keywordText}. Keep under 95 words, be conversational, and end with a call-to-action.`,
+      
+      // Service-focused angle
+      `Create a professional post highlighting ${businessName}'s expertise${locationName ? ` in ${locationName}` : ''}. Business category: ${category}. Naturally incorporate: ${keywordText}. Maximum 90 words, engaging tone, include call-to-action.`,
+      
+      // Problem-solution angle
+      `Write a post showing how ${businessName}${locationName ? ` in ${locationName}` : ''} solves customer problems. Category: ${category}. Use these keywords naturally: ${keywordText}. Under 95 words, conversational, end with action.`,
+      
+      // Community-focused angle
+      `Create a community-focused post for ${businessName}${locationName ? ` serving ${locationName}` : ''}. Business type: ${category}. Include keywords: ${keywordText}. 90 words max, friendly tone, clear call-to-action.`,
+      
+      // Experience-focused angle
+      `Write about the experience customers get at ${businessName}${locationName ? ` in ${locationName}` : ''}. Category: ${category}. Include these terms: ${keywordText}. Keep to 95 words, engaging style, end with invitation.`,
+      
+      // Quality-focused angle
+      `Highlight what makes ${businessName}${locationName ? ` in ${locationName}` : ''} stand out. Business: ${category}. Keywords to include: ${keywordText}. Maximum 90 words, professional yet warm, call-to-action needed.`,
+      
+      // Results-focused angle
+      `Create a results-oriented post for ${businessName}${locationName ? ` in ${locationName}` : ''}. Type: ${category}. Naturally use: ${keywordText}. Under 95 words, confident tone, strong call-to-action.`,
+      
+      // Trust-building angle
+      `Write a trust-building post for ${businessName}${locationName ? ` in ${locationName}` : ''}. Category: ${category}. Include keywords: ${keywordText}. 90 words max, trustworthy tone, clear next step.`,
+      
+      // Innovation-focused angle
+      `Show how ${businessName}${locationName ? ` in ${locationName}` : ''} brings fresh approaches. Business: ${category}. Keywords: ${keywordText}. Keep under 95 words, modern tone, compelling call-to-action.`,
+      
+      // Value-focused angle
+      `Emphasize the value ${businessName}${locationName ? ` in ${locationName}` : ''} provides. Type: ${category}. Use naturally: ${keywordText}. Maximum 90 words, value-driven, end with action.`
+    ];
+    
+    // Select prompt based on time and randomness for variety
+    const promptIndex = (currentTime + dayOfWeek + randomSeed) % promptVariations.length;
+    const prompt = promptVariations[promptIndex];
+    
+    console.log(`🎯 Using prompt variation #${promptIndex + 1} for variety`);
 
     console.log('🤖 Generating content with Azure OpenAI...');
     console.log('📝 Prompt:', prompt.substring(0, 100) + '...');
@@ -289,7 +399,7 @@ Generate ONLY the post content, no additional text or formatting.`;
           messages: [
             {
               role: 'system',
-              content: 'You are a professional social media content creator specializing in Google Business Profile posts. Generate engaging, keyword-focused content under 100 words maximum. Always say "BusinessName in City" NOT "BusinessName City".'
+              content: `You are a professional social media content creator specializing in Google Business Profile posts. Generate engaging, keyword-focused content under 95 words maximum. Always say "BusinessName in City" NOT "BusinessName City". Create unique, varied content that differs from typical business posts. Be creative and original.`
             },
             {
               role: 'user',
@@ -297,7 +407,7 @@ Generate ONLY the post content, no additional text or formatting.`;
             }
           ],
           max_tokens: 100,
-          temperature: 0.7,
+          temperature: 0.9, // Higher temperature for more creative variety
         }),
         signal: controller.signal,
       });
@@ -347,7 +457,7 @@ Generate ONLY the post content, no additional text or formatting.`;
     } catch (error) {
       console.error('🚨 Failed to generate content with Azure OpenAI, falling back to template content:', error);
       console.warn('🎨 Using high-quality template content instead - your posts will still be great!');
-      return this.getFallbackContent(businessName, category, keywords, websiteUrl);
+      return this.getFallbackContent(businessName, category, keywords, locationName, websiteUrl);
     }
   }
 
