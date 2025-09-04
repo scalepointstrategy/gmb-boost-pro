@@ -297,28 +297,28 @@ const Posts = () => {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card className="shadow-card border-0">
+          <Card className="shadow-card border border-border">
             <CardContent className="pt-6">
               <div className="text-2xl font-bold">{statusCounts.all}</div>
               <p className="text-xs text-muted-foreground">Total Posts</p>
             </CardContent>
           </Card>
           
-          <Card className="shadow-card border-0">
+          <Card className="shadow-card border border-border">
             <CardContent className="pt-6">
               <div className="text-2xl font-bold text-success">{statusCounts.published}</div>
               <p className="text-xs text-muted-foreground">Published</p>
             </CardContent>
           </Card>
           
-          <Card className="shadow-card border-0">
+          <Card className="shadow-card border border-border">
             <CardContent className="pt-6">
               <div className="text-2xl font-bold text-warning">{statusCounts.scheduled}</div>
               <p className="text-xs text-muted-foreground">Scheduled</p>
             </CardContent>
           </Card>
           
-          <Card className="shadow-card border-0">
+          <Card className="shadow-card border border-border">
             <CardContent className="pt-6">
               <div className="text-2xl font-bold text-muted-foreground">{statusCounts.draft}</div>
               <p className="text-xs text-muted-foreground">Drafts</p>
@@ -327,7 +327,7 @@ const Posts = () => {
         </div>
 
         {/* Filters */}
-        <Card className="shadow-card border-0">
+        <Card className="shadow-card border border-border">
           <CardContent className="pt-6">
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="relative flex-1">
@@ -377,7 +377,7 @@ const Posts = () => {
         </Card>
 
         {/* Posts List */}
-        <Card className="shadow-card border-0">
+        <Card className="shadow-card border border-border">
           <CardHeader>
             <CardTitle>All Posts</CardTitle>
           </CardHeader>
@@ -386,7 +386,7 @@ const Posts = () => {
             {loading ? (
               <div className="space-y-4">
                 {Array.from({ length: 5 }).map((_, index) => (
-                  <div key={index} className="border rounded-lg p-4 animate-pulse">
+                  <div key={index} className="border border-border rounded-lg p-4 animate-pulse shadow-sm">
                     <div className="flex items-start justify-between mb-3">
                       <div className="h-4 bg-muted rounded w-1/4"></div>
                       <div className="h-6 bg-muted rounded w-20"></div>
@@ -418,7 +418,7 @@ const Posts = () => {
             ) : (
               <div className="space-y-4">
                 {filteredPosts.map((post) => (
-                  <div key={post.id} className="border rounded-lg p-4 hover:bg-muted/30 transition-colors">
+                  <div key={post.id} className="border border-border rounded-lg p-4 hover:bg-muted/30 transition-colors shadow-sm">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-sm">{post.profileName}</span>

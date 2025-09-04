@@ -14,6 +14,7 @@ import Posts from "./pages/Posts";
 import Reviews from "./pages/Reviews";
 import AskForReviews from "./pages/AskForReviews";
 import Settings from "./pages/Settings";
+import AuditTool from "./pages/AuditTool";
 import { AuthProvider } from "./contexts/AuthContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
 
@@ -59,6 +60,7 @@ const App = () => (
               <Route path="reviews" element={<Reviews />} />
               <Route path="ask-for-reviews" element={<AskForReviews />} />
               <Route path="settings" element={<Settings />} />
+              <Route path="audit" element={<AuditTool />} />
             </Route>
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

@@ -553,14 +553,14 @@ const Reviews = () => {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <Card className="shadow-card border-0">
+        <Card className="shadow-card border border-border">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold">{stats.total}</div>
             <p className="text-xs text-muted-foreground">Total Reviews</p>
           </CardContent>
         </Card>
         
-        <Card className="shadow-card border-0">
+        <Card className="shadow-card border border-border">
           <CardContent className="pt-6">
             <div className="flex items-center gap-2">
               <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
@@ -570,21 +570,21 @@ const Reviews = () => {
           </CardContent>
         </Card>
         
-        <Card className="shadow-card border-0">
+        <Card className="shadow-card border border-border">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-green-600">{stats.replied}</div>
             <p className="text-xs text-muted-foreground">Replied</p>
           </CardContent>
         </Card>
         
-        <Card className="shadow-card border-0">
+        <Card className="shadow-card border border-border">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-orange-600">{stats.needReply}</div>
             <p className="text-xs text-muted-foreground">Need Reply</p>
           </CardContent>
         </Card>
         
-        <Card className="shadow-card border-0">
+        <Card className="shadow-card border border-border">
           <CardContent className="pt-6">
             <div className="flex items-center gap-1">
               {getSentimentIcon('positive')}
@@ -596,7 +596,7 @@ const Reviews = () => {
       </div>
 
       {/* Enhanced Filters and Actions */}
-      <Card className="shadow-card border-0">
+      <Card className="shadow-card border border-border">
         <CardContent className="pt-6">
           <div className="space-y-4">
             {/* Search, Refresh, and Export */}
@@ -751,7 +751,7 @@ const Reviews = () => {
       </Card>
 
       {/* Reviews List */}
-      <Card className="shadow-card border-0">
+      <Card className="shadow-card border border-border">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>All Reviews ({filteredAndSortedReviews.length})</CardTitle>
           <div className="flex items-center gap-2">
@@ -773,7 +773,7 @@ const Reviews = () => {
           {loading ? (
             <div className="space-y-6">
               {Array.from({ length: 4 }).map((_, index) => (
-                <div key={index} className="border-b border-border pb-6 animate-pulse">
+                <div key={index} className="border border-border rounded-lg p-4 shadow-sm animate-pulse">
                   <div className="flex gap-4">
                     <div className="h-10 w-10 bg-muted rounded-full"></div>
                     <div className="flex-1 space-y-2">
@@ -801,10 +801,7 @@ const Reviews = () => {
           ) : (
             <div className="space-y-6">
               {filteredAndSortedReviews.map((review, index) => (
-                <div key={review.id} className={cn(
-                  "pb-6",
-                  index < filteredAndSortedReviews.length - 1 && "border-b border-border"
-                )}>
+                <div key={review.id} className="border border-border rounded-lg p-4 shadow-sm hover:bg-muted/30 transition-colors">
                   <div className="flex gap-4">
                     <Avatar className="h-10 w-10">
                       <AvatarFallback className="bg-primary/10 text-primary">

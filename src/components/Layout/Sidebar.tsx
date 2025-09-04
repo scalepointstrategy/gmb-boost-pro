@@ -8,54 +8,39 @@ import {
   Star, 
   Settings, 
   Search,
-  ChevronLeft,
-  ChevronRight,
-  MessageSquarePlus
+  MessageSquarePlus,
+  Users
 } from "lucide-react";
 
-interface SidebarProps {
-  collapsed: boolean;
-  onToggle: () => void;
-}
-
-const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
+const Sidebar = () => {
   const location = useLocation();
 
   const navItems = [
-    { label: "Profiles", href: "/dashboard", icon: Building2 },
+    { label: "Profiles", href: "/dashboard", icon: Users },
     { label: "Posts", href: "/dashboard/posts", icon: FileText },
     { label: "Reviews", href: "/dashboard/reviews", icon: Star },
-    { label: "Ask for Reviews", href: "/dashboard/ask-for-reviews", icon: MessageSquarePlus },
-    { label: "Settings", href: "/dashboard/settings", icon: Settings },
+    { label: "Audit Tool", href: "/dashboard/audit", icon: Search },
   ];
 
   const isActive = (href: string) => {
-    return href === "/dashboard" ? location.pathname === href : location.pathname.startsWith(href);
+    // Exact match for dashboard route
+    if (href === "/dashboard") {
+      return location.pathname === "/dashboard" || location.pathname === "/";
+    }
+    // For other routes, check if current path starts with the href
+    return location.pathname.startsWith(href);
   };
 
   return (
-    <div className={cn(
-      "fixed left-0 top-0 z-40 h-screen bg-card border-r border-border transition-all duration-300",
-      collapsed ? "w-16" : "w-64"
-    )}>
+    <div className="fixed left-0 top-0 z-40 h-screen w-64 bg-card border-r border-border">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-border">
-        {!collapsed && (
-          <div className="flex items-center gap-2">
-            <Building2 className="h-6 w-6 text-primary" />
-            <span className="font-bold text-lg bg-gradient-primary bg-clip-text text-transparent">
-              GMP BOOST PRO
-            </span>
-          </div>
-        )}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onToggle}
-          className="h-8 w-8 p-0 hover:bg-muted"
-        >
-          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-        </Button>
+      <div className="flex items-center p-4 border-b border-border">
+        <div className="flex items-center gap-2">
+          <Building2 className="h-6 w-6 text-primary" />
+          <span className="font-bold text-lg bg-gradient-primary bg-clip-text text-transparent">
+            GMB BOOST PRO
+          </span>
+        </div>
       </div>
 
       {/* Navigation */}
@@ -64,65 +49,92 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
           <NavLink
             key={item.href}
             to={item.href}
-            className={({ isActive: linkIsActive }) =>
-              cn(
+            className={() => {
+              const currentlyActive = isActive(item.href);
+              return cn(
                 "flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 group",
-                "hover:bg-muted/70",
-                isActive(item.href) || linkIsActive
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              )
-            }
+                currentlyActive
+                  ? "shadow-sm"
+                  : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+              );
+            }}
+            style={() => {
+              const currentlyActive = isActive(item.href);
+              return currentlyActive
+                ? { backgroundColor: '#DBEAFE', color: '#1B29CB' }
+                : {};
+            }}
           >
-            <item.icon className={cn(
-              "h-5 w-5 transition-transform group-hover:scale-105",
-              collapsed ? "mx-auto" : ""
-            )} />
-            {!collapsed && (
-              <span className="font-medium">{item.label}</span>
-            )}
+            <item.icon 
+              className="h-5 w-5 transition-transform group-hover:scale-105"
+              style={
+                isActive(item.href)
+                  ? { color: '#1B29CB' }
+                  : {}
+              }
+            />
+            <span className="font-medium">{item.label}</span>
           </NavLink>
         ))}
 
 
-        {/* Audit Tool - Locked */}
-        <div className={cn(
-          "flex items-center gap-3 px-3 py-3 rounded-lg",
-          "text-muted-foreground/50 cursor-not-allowed relative"
-        )}>
-          <Search className={cn(
-            "h-5 w-5",
-            collapsed ? "mx-auto" : ""
-          )} />
-          {!collapsed && (
-            <>
-              <span className="font-medium">Audit Tool</span>
-              <span className="ml-auto text-xs bg-muted px-2 py-1 rounded-full">
-                Coming Soon
-              </span>
-            </>
-          )}
-        </div>
+        {/* Settings */}
+        <NavLink
+          to="/dashboard/settings"
+          className={() => {
+            const currentlyActive = isActive("/dashboard/settings");
+            return cn(
+              "flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 group",
+              currentlyActive
+                ? "shadow-sm"
+                : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+            );
+          }}
+          style={() => {
+            const currentlyActive = isActive("/dashboard/settings");
+            return currentlyActive
+              ? { backgroundColor: '#DBEAFE', color: '#1B29CB' }
+              : {};
+          }}
+        >
+          <Settings 
+            className="h-5 w-5 transition-transform group-hover:scale-105"
+            style={
+              isActive("/dashboard/settings")
+                ? { color: '#1B29CB' }
+                : {}
+            }
+          />
+          <span className="font-medium">Settings</span>
+        </NavLink>
       </nav>
 
       {/* Upgrade Section */}
-      {!collapsed && (
-        <div className="absolute bottom-4 left-4 right-4">
-          <div className="bg-gradient-primary p-4 rounded-lg text-primary-foreground">
-            <h3 className="font-semibold text-sm mb-2">Get Premium Access</h3>
-            <p className="text-xs opacity-90 mb-3">
-              Take your business profile management to the next level with powerful tools.
-            </p>
+      <div className="absolute bottom-4 left-4 right-4">
+        <div className="bg-gradient-primary p-4 rounded-lg text-primary-foreground">
+          <div className="flex items-center gap-3 mb-3">
+            <MessageSquarePlus className="h-6 w-6" />
+            <h3 className="font-semibold text-base">Ask for Reviews</h3>
+          </div>
+          <p className="text-sm opacity-90 mb-3">
+            Generate QR codes for easy reviews
+          </p>
+          <a 
+            href="https://demo.scalepointstrategy.com/qr" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="block w-full"
+          >
             <Button 
               variant="secondary" 
               size="sm" 
               className="w-full text-primary hover:bg-white/90"
             >
-              Upgrade Now
+              Generate QR
             </Button>
-          </div>
+          </a>
         </div>
-      )}
+      </div>
     </div>
   );
 };
