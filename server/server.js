@@ -1,63 +1,22 @@
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import { google } from 'googleapis';
 import fetch from 'node-fetch';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import config from './config.js';
 
-// Load environment variables
-dotenv.config();
-
-// Configuration - hardcoded values for all environments
-// Google OAuth credentials (hardcoded for Docker deployment)
-process.env.GOOGLE_CLIENT_ID = '52772597205-9ogv54i6sfvucse3jrqj1nl1hlkspcv1.apps.googleusercontent.com';
-process.env.GOOGLE_CLIENT_SECRET = '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';
-
-// Default configuration for Docker container
-const DEFAULT_FRONTEND_URL = 'http://localhost:3000';
-const DEFAULT_BACKEND_PORT = 5000;
-
-// Set frontend URL based on environment
-if (process.env.NODE_ENV === 'production') {
-  process.env.FRONTEND_URL = process.env.FRONTEND_URL || 'https://polite-wave-08ec8c90f.1.azurestaticapps.net';
-} else {
-  process.env.FRONTEND_URL = process.env.FRONTEND_URL || DEFAULT_FRONTEND_URL;
-}
-
-// Set redirect URI
-process.env.GOOGLE_REDIRECT_URI = `${process.env.FRONTEND_URL}/auth/google/callback`;
+// Configuration is now managed by config.js
+// All hardcoded values have been moved to .env files
 
 // Hardcoded account ID for Google Business Profile API
-const HARDCODED_ACCOUNT_ID = '106433552101751461082';
+const HARDCODED_ACCOUNT_ID = process.env.HARDCODED_ACCOUNT_ID || '106433552101751461082';
 
 const app = express();
-const PORT = process.env.PORT || DEFAULT_BACKEND_PORT;
+const PORT = config.port;
 
-// Middleware - Allow multiple frontend URLs
-const allowedOrigins = [
-  'http://localhost:3000',
-  'http://localhost:3001', 
-  'http://localhost:3002',
-  'http://localhost:3003',
-  'http://localhost:3004',
-  'http://localhost:3005',
-  'http://localhost:3006',
-  'http://localhost:3007',
-  'http://localhost:3008',
-  'http://localhost:3009',
-  // Azure backend URLs (current and any future deployments)
-  process.env.WEBSITE_HOSTNAME ? `https://${process.env.WEBSITE_HOSTNAME}` : null,
-  'https://scale-a5dwhnbtdmesd6fm.canadacentral-01.azurewebsites.net',
-  // Static Web App URLs (current and any future deployments)  
-  'https://polite-wave-08ec8c90f.1.azurestaticapps.net',
-  process.env.FRONTEND_URL
-].filter(Boolean);
-
-// In production, we serve from same domain so CORS is less restrictive
-if (process.env.NODE_ENV === 'production') {
-  allowedOrigins.push(process.env.FRONTEND_URL || '');
-}
+// Middleware - Origins are now managed by config.js
+const allowedOrigins = config.allowedOrigins;
 
 app.use(cors({
   origin: function(origin, callback) {
@@ -130,7 +89,7 @@ async function ensureValidToken(accessToken, refreshToken) {
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
-  process.env.GOOGLE_REDIRECT_URI
+  config.googleRedirectUri
 );
 
 // Scopes required for Google Business Profile API
@@ -153,11 +112,7 @@ app.get('/health', (req, res) => {
 // Get current configuration (for debugging deployment issues)
 app.get('/config', (req, res) => {
   res.json({
-    environment: process.env.NODE_ENV || 'development',
-    frontendUrl: process.env.FRONTEND_URL,
-    redirectUri: process.env.GOOGLE_REDIRECT_URI,
-    clientIdConfigured: !!process.env.GOOGLE_CLIENT_ID,
-    azureHostname: process.env.WEBSITE_HOSTNAME || 'not-detected',
+    ...config.getSummary(),
     timestamp: new Date().toISOString()
   });
 });
@@ -1404,13 +1359,22 @@ app.get('*', (req, res) => {
 
 // Start the server  
 app.listen(PORT, () => {
-  console.log(`🚀 Backend server running on http://localhost:${PORT}`);
+  const summary = config.getSummary();
+  console.log(`🚀 Backend server running on ${config.backendUrl}`);
+  console.log(`🏗️ Configuration Mode: ${summary.mode} (${summary.environment})`);
   console.log('🔑 Google OAuth Configuration:');
-  console.log(`   Client ID: ${process.env.GOOGLE_CLIENT_ID ? 'Configured ✅' : 'Missing ❌'}`);
-  console.log(`   Client Secret: ${process.env.GOOGLE_CLIENT_SECRET ? 'Configured ✅' : 'Missing ❌'}`);
-  console.log(`   Redirect URI: ${process.env.GOOGLE_REDIRECT_URI}`);
+  console.log(`   Client ID: ${summary.hasGoogleClientId ? 'Configured ✅' : 'Missing ❌'}`);
+  console.log(`   Client Secret: ${summary.hasGoogleClientSecret ? 'Configured ✅' : 'Missing ❌'}`);
+  console.log(`   Redirect URI: ${summary.redirectUri}`);
+  console.log('🌐 CORS Configuration:');
+  console.log(`   Frontend URL: ${summary.frontendUrl}`);
+  console.log(`   Allowed Origins: ${summary.allowedOrigins.length} configured`);
+  if (summary.mode === 'AZURE') {
+    console.log(`   Azure Hostname: ${summary.azureHostname}`);
+  }
   console.log('📊 Available endpoints:');
   console.log(`   GET  /health`);
+  console.log(`   GET  /config`);
   console.log(`   GET  /auth/google/url`);
   console.log(`   POST /auth/google/callback`);
   console.log(`   GET  /api/accounts`);

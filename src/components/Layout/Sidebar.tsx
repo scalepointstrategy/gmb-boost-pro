@@ -33,8 +33,8 @@ const Sidebar = () => {
 
   return (
     <div className="fixed left-0 top-0 z-40 h-screen w-64 bg-card border-r border-border">
-      {/* Header */}
-      <div className="flex items-center p-4 border-b border-border">
+      {/* Header - Match topbar height */}
+      <div className="h-16 flex items-center p-4 border-b border-border bg-card">
         <div className="flex items-center gap-2">
           <Building2 className="h-6 w-6 text-primary" />
           <span className="font-bold text-lg bg-gradient-primary bg-clip-text text-transparent">

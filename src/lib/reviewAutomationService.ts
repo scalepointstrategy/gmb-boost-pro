@@ -33,13 +33,46 @@ interface ProcessedReview {
 class ReviewAutomationService {
   private intervalId: NodeJS.Timeout | null = null;
   private isRunning = false;
-  private checkInterval = 60000; // Check every 60 seconds for new reviews
+  private checkInterval = 15000; // Check every 15 seconds for real-time response
   private processedReviews: Map<string, ProcessedReview> = new Map();
   private notificationService: NotificationService | null = null;
 
   constructor() {
     this.loadProcessedReviews();
-    this.start();
+    // Don't auto-start immediately - wait for Google Business Profile connection
+    console.log('🤖 AUTOMATION: Review automation service initialized');
+    this.delayedStart();
+  }
+
+  // Start the service with connection checking
+  private delayedStart(): void {
+    // Wait a bit for the app to initialize, then check if we can start
+    setTimeout(() => {
+      this.checkConnectionAndStart();
+    }, 5000); // Wait 5 seconds for app to initialize
+  }
+
+  // Check if Google Business Profile is connected before starting
+  private checkConnectionAndStart(): void {
+    console.log('🔍 AUTOMATION: Checking Google Business Profile connection...');
+    
+    const checkConnection = () => {
+      const hasToken = !!googleBusinessProfileService.getAccessToken();
+      const isGBPConnected = googleBusinessProfileService.isConnected();
+      
+      console.log('🔍 AUTOMATION: Connection check -', { hasToken, isGBPConnected });
+      
+      if (hasToken && isGBPConnected) {
+        console.log('✅ AUTOMATION: Google Business Profile is connected, starting automation');
+        this.start();
+      } else {
+        console.log('⏳ AUTOMATION: Waiting for Google Business Profile connection...');
+        // Check again in 15 seconds
+        setTimeout(checkConnection, 15000);
+      }
+    };
+    
+    checkConnection();
   }
 
   // Set the notification service to enable notifications
@@ -77,15 +110,37 @@ class ReviewAutomationService {
 
   private async checkAndProcessReviews(): Promise<void> {
     try {
+      console.log('🔄 AUTOMATION: Starting review check cycle...');
+      
+      // Double check GBP connection
+      if (!googleBusinessProfileService.isConnected()) {
+        console.warn('⚠️ AUTOMATION: Google Business Profile connection lost, stopping automation');
+        this.stop();
+        return;
+      }
+      
       const enabledConfigs = this.getEnabledConfigurations();
       
-      console.log(`🔍 Checking ${enabledConfigs.length} enabled review configurations`);
+      console.log(`🔍 AUTOMATION: Found ${enabledConfigs.length} enabled review configurations`);
+      
+      if (enabledConfigs.length === 0) {
+        console.log('ℹ️ AUTOMATION: No enabled auto-reply configurations found. Make sure you have enabled auto-reply for at least one location.');
+        return;
+      }
+      
+      // Log details about each config
+      enabledConfigs.forEach(config => {
+        console.log(`📋 AUTOMATION: Config - ${config.businessName} (${config.locationId}) - Auto-reply: ${config.autoReplyEnabled ? 'ON' : 'OFF'}`);
+      });
       
       for (const config of enabledConfigs) {
+        console.log(`🎯 AUTOMATION: Processing location: ${config.businessName}`);
         await this.processLocationReviews(config);
       }
+      
+      console.log('✅ AUTOMATION: Review check cycle completed');
     } catch (error) {
-      console.error('🚨 Error in review automation service check:', error);
+      console.error('🚨 AUTOMATION ERROR:', error);
     }
   }
 
@@ -439,6 +494,26 @@ Generate only the reply text, no quotes or extra formatting.`;
     return this.isRunning;
   }
 
+  // Force restart the automation service (useful for debugging)
+  restart(): void {
+    console.log('🔄 AUTOMATION: Manually restarting automation service...');
+    this.stop();
+    setTimeout(() => {
+      this.checkConnectionAndStart();
+    }, 2000); // Wait 2 seconds before restarting
+  }
+
+  // Force an immediate check (useful for testing)
+  async forceCheck(): Promise<void> {
+    console.log('⚡ AUTOMATION: Force checking reviews immediately...');
+    if (!this.isRunning) {
+      console.warn('⚠️ AUTOMATION: Service is not running. Starting it first...');
+      this.checkConnectionAndStart();
+      return;
+    }
+    await this.checkAndProcessReviews();
+  }
+
   // Public method to generate AI reply for manual use
   async generateAIReply(params: {
     reviewText: string;
@@ -468,3 +543,9 @@ Generate only the reply text, no quotes or extra formatting.`;
 
 // Export singleton instance
 export const reviewAutomationService = new ReviewAutomationService();
+
+// Make available globally for debugging in development
+if (typeof window !== 'undefined' && import.meta.env.DEV) {
+  (window as any).reviewAutomationService = reviewAutomationService;
+  console.log('🛠️ DEV: reviewAutomationService is now available on window object for debugging');
+}

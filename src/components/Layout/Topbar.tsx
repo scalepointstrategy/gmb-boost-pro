@@ -44,8 +44,9 @@ const Topbar = () => {
   };
 
   return (
-    <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6">
+    <header className="sticky top-0 z-50 h-16 bg-card border-b border-border flex items-center justify-between px-6">
       <div className="flex items-center gap-4">
+        {/* Empty space to align with sidebar content */}
       </div>
 
       <div className="flex items-center gap-4">

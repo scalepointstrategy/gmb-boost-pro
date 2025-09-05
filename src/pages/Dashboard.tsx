@@ -131,14 +131,21 @@ const Dashboard = () => {
   return (
     <div className="space-y-6">
 
-      {/* Action Button */}
-      <div className="flex justify-end">
-        <Link to="/dashboard/posts">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Create Post
-          </Button>
-        </Link>
+      {/* Header with Manage Profiles text and Create Post button */}
+      <div className="flex justify-between items-center">
+        <div className="flex justify-start">
+          <h2 className="text-lg font-semibold" style={{ fontFamily: 'Onest' }}>
+            Manage Profiles
+          </h2>
+        </div>
+        <div className="flex justify-end">
+          <Link to="/dashboard/posts">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Post
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -209,59 +216,77 @@ const Dashboard = () => {
                 const locationId = location.locationId || location.name?.split('/').pop() || index;
                 
                 return (
-                  <Card key={index} className="cursor-pointer hover:shadow-md transition-shadow">
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-base font-medium">{profile.accountName}</CardTitle>
-                        <Badge variant={profile.state === 'VERIFIED' ? 'default' : 'secondary'}>
-                          {profile.state}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      {/* Location Info */}
-                      <div className="space-y-2">
-                        <div className="flex items-center space-x-2">
-                          <MapPin className="h-4 w-4 text-muted-foreground" />
-                          <p className="text-sm text-muted-foreground">
-                            {location.address?.locality || 'Location'} {location.address?.administrativeArea && `, ${location.address.administrativeArea}`}
-                          </p>
-                        </div>
-                        
-                        {location.phoneNumber && (
-                          <div className="flex items-center space-x-2">
-                            <span className="text-sm text-muted-foreground">📞</span>
-                            <p className="text-sm text-muted-foreground">{location.phoneNumber}</p>
-                          </div>
-                        )}
-                        
-                        {location.categories && location.categories.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {location.categories.slice(0, 2).map((category: any, catIndex: number) => (
-                              <Badge key={catIndex} variant="outline" className="text-xs">
-                                {category.name}
-                              </Badge>
-                            ))}
-                            {location.categories.length > 2 && (
-                              <Badge variant="outline" className="text-xs">
-                                +{location.categories.length - 2} more
-                              </Badge>
-                            )}
+                  <div key={index} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 cursor-pointer hover:shadow-md transition-shadow flex flex-col h-full">
+                    {/* Content area that grows */}
+                    <div className="flex-1">
+                      {/* Header with name and verification badge */}
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 
+                          className="text-base font-semibold text-black truncate flex-1 mr-2" 
+                          style={{ fontSize: '16px', fontFamily: 'Onest' }}
+                          title={profile.accountName}
+                        >
+                          {profile.accountName}
+                        </h3>
+                        {profile.state === 'VERIFIED' && (
+                          <div className="w-4 h-4 flex items-center justify-center flex-shrink-0">
+                            <img 
+                              src="/Vector.svg" 
+                              alt="Verified" 
+                              className="w-4 h-4"
+                            />
                           </div>
                         )}
                       </div>
                       
-                      {/* Manage Button */}
-                      <div className="pt-2 border-t">
-                        <Link to={`/dashboard/profiles/${locationId}`} className="block">
-                          <Button variant="ghost" size="sm" className="w-full justify-between">
-                            <span>Manage Profile</span>
-                            <ArrowRight className="h-4 w-4" />
-                          </Button>
-                        </Link>
+                      {/* Location */}
+                      <div className="flex items-center mb-3">
+                        <MapPin className="h-4 w-4 text-black mr-2" />
+                        <span className="text-sm text-black" style={{ fontSize: '14px', fontFamily: 'Onest' }}>
+                          {location.address?.locality || 'Location'} {location.address?.administrativeArea && `, ${location.address.administrativeArea}`}
+                        </span>
                       </div>
-                    </CardContent>
-                  </Card>
+                      
+                      {/* Categories */}
+                      {location.categories && location.categories.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-4">
+                          {location.categories.slice(0, 2).map((category: any, catIndex: number) => (
+                            <span 
+                              key={catIndex} 
+                              className="px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs border border-blue-100"
+                              style={{ fontFamily: 'Onest' }}
+                            >
+                              {category.name}
+                            </span>
+                          ))}
+                          {location.categories.length > 2 && (
+                            <span 
+                              className="px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs border border-blue-100"
+                              style={{ fontFamily: 'Onest' }}
+                            >
+                              +{location.categories.length - 2} more
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Manage Profile Button - Fixed at bottom */}
+                    <div className="mt-4">
+                      <Link to={`/dashboard/profiles/${locationId}`} className="block">
+                        <button 
+                          className="w-full py-2 px-4 rounded-lg text-white font-medium transition-colors"
+                          style={{ 
+                            backgroundColor: '#1E2DCD',
+                            fontSize: '14px',
+                            fontFamily: 'Onest'
+                          }}
+                        >
+                          Manage Profile
+                        </button>
+                      </Link>
+                    </div>
+                  </div>
                 );
               })}
             </div>

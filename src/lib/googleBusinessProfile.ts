@@ -1,5 +1,7 @@
 // Frontend-only Google Business Profile integration using Google Identity Services
 
+import { tokenStorageService, type StoredGoogleTokens } from './tokenStorage';
+
 // Google Business Profile API configuration
 const SCOPES = [
   'https://www.googleapis.com/auth/business.manage',
@@ -92,11 +94,16 @@ class GoogleBusinessProfileService {
   private accessToken: string | null = null;
   private isGoogleLibLoaded: boolean = false;
   private backendUrl: string;
+  private currentUserId: string | null = null;
+  
+  // Simple in-memory cache with TTL
+  private cache = new Map<string, { data: any; expires: number }>();
+  private readonly CACHE_TTL = 2 * 60 * 1000; // 2 minutes
 
   constructor() {
     this.clientId = '52772597205-9ogv54i6sfvucse3jrqj1nl1hlkspcv1.apps.googleusercontent.com';
     this.backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://scale12345-hccmcmf7g3bwbvd0.canadacentral-01.azurewebsites.net';
-    this.loadStoredTokens();
+    // Note: loadStoredTokens is now called with userId parameter
     this.initializeGoogleAPI();
   }
 
@@ -153,21 +160,25 @@ class GoogleBusinessProfileService {
           console.log('✅ DEBUGGING: Google OAuth Success! Storing tokens...');
           this.accessToken = tokenResponse.access_token;
 
-          // Store tokens
-          const tokens = {
+          // Store tokens in both localStorage (backup) and Firestore (primary)
+          const tokens: StoredGoogleTokens = {
             access_token: tokenResponse.access_token,
             token_type: 'Bearer',
             expires_in: tokenResponse.expires_in,
-            scope: tokenResponse.scope
+            scope: tokenResponse.scope,
+            stored_at: Date.now(),
+            expires_at: Date.now() + (tokenResponse.expires_in * 1000)
           };
 
+          // Store in localStorage (existing functionality - don't break anything)
           localStorage.setItem('google_business_tokens', JSON.stringify(tokens));
           localStorage.setItem('google_business_connected', 'true');
           localStorage.setItem('google_business_connection_time', Date.now().toString());
 
           console.log('✅ DEBUGGING: Tokens stored in localStorage');
-          console.log('🔍 DEBUGGING: Stored tokens:', localStorage.getItem('google_business_tokens'));
-          console.log('🔍 DEBUGGING: Connection flag:', localStorage.getItem('google_business_connected'));
+          
+          // Also store in Firestore if user ID is available
+          this.storeTokensInFirestore(tokens);
           
           resolve();
         },
@@ -181,39 +192,145 @@ class GoogleBusinessProfileService {
     });
   }
 
-  // Load stored tokens
-  async loadStoredTokens(): Promise<boolean> {
+  // Set current user ID for token management
+  setCurrentUserId(userId: string | null): void {
+    this.currentUserId = userId;
+    console.log('🔍 DEBUGGING: Current user ID set to:', userId);
+  }
+
+  // Load stored tokens with optimized performance - localStorage first for speed
+  async loadStoredTokens(userId?: string): Promise<boolean> {
     try {
-      const storedTokens = localStorage.getItem('google_business_tokens');
-      const isConnected = localStorage.getItem('google_business_connected');
+      const userIdToUse = userId || this.currentUserId;
       
       console.log('🔍 DEBUGGING loadStoredTokens:', { 
-        hasStoredTokens: !!storedTokens, 
-        isConnectedFlag: isConnected,
-        storedTokensContent: storedTokens 
+        userIdProvided: !!userId,
+        currentUserIdSet: !!this.currentUserId,
+        userIdToUse: userIdToUse
       });
+      
+      // Start with localStorage first for immediate speed (no network calls)
+      const storedTokens = localStorage.getItem('google_business_tokens');
+      const isConnected = localStorage.getItem('google_business_connected');
       
       if (storedTokens && isConnected === 'true') {
         try {
           const tokens = JSON.parse(storedTokens);
-          this.accessToken = tokens.access_token;
-          console.log('✅ Loaded stored tokens successfully, connection restored');
-          console.log('🔍 Access token set:', !!this.accessToken);
-          return true;
+          // Quick expiry check
+          const now = Date.now();
+          const expires = tokens.expires_at || (tokens.stored_at + (tokens.expires_in * 1000));
+          
+          if (!expires || now < expires) {
+            this.accessToken = tokens.access_token;
+            console.log('✅ Loaded valid tokens from localStorage (fast path)');
+            
+            // Background sync to Firestore without waiting
+            if (userIdToUse) {
+              this.backgroundSyncToFirestore(userIdToUse, tokens).catch(e => 
+                console.warn('Background Firestore sync failed:', e)
+              );
+            }
+            
+            return true;
+          } else {
+            console.log('⏰ localStorage tokens expired, clearing');
+            localStorage.removeItem('google_business_tokens');
+            localStorage.removeItem('google_business_connected');
+          }
         } catch (parseError) {
-          console.error('❌ Error parsing stored tokens:', parseError);
-          // Clear bad tokens
+          console.error('❌ Error parsing localStorage tokens:', parseError);
           localStorage.removeItem('google_business_tokens');
           localStorage.removeItem('google_business_connected');
-          return false;
         }
       }
       
-      console.log('❌ No valid stored tokens or connection found');
+      // Only try Firestore if localStorage failed and user ID is available
+      if (userIdToUse) {
+        try {
+          console.log('🔍 Checking Firestore for tokens (localStorage failed)');
+          const firestoreTokens = await tokenStorageService.getTokens(userIdToUse);
+          if (firestoreTokens) {
+            this.accessToken = firestoreTokens.access_token;
+            console.log('✅ Loaded tokens from Firestore successfully');
+            
+            // Update localStorage for next time (performance optimization)
+            localStorage.setItem('google_business_tokens', JSON.stringify(firestoreTokens));
+            localStorage.setItem('google_business_connected', 'true');
+            
+            return true;
+          }
+        } catch (firestoreError) {
+          console.warn('⚠️ Firestore token load failed:', firestoreError);
+        }
+      }
+      
+      console.log('❌ No valid stored tokens found');
       return false;
     } catch (error) {
       console.error('❌ Error loading stored tokens:', error);
       return false;
+    }
+  }
+  
+  // Background sync to Firestore (non-blocking)
+  private async backgroundSyncToFirestore(userId: string, tokens: any): Promise<void> {
+    try {
+      const firestoreTokens: StoredGoogleTokens = {
+        access_token: tokens.access_token,
+        token_type: tokens.token_type || 'Bearer',
+        expires_in: tokens.expires_in || 3600,
+        scope: tokens.scope || '',
+        refresh_token: tokens.refresh_token,
+        stored_at: tokens.stored_at || Date.now(),
+        expires_at: tokens.expires_at || Date.now() + (tokens.expires_in * 1000)
+      };
+      
+      await tokenStorageService.saveTokens(userId, firestoreTokens);
+      console.log('🔄 Background sync to Firestore completed');
+    } catch (error) {
+      // Silent failure - this is background operation
+      console.debug('Background Firestore sync failed (non-critical):', error);
+    }
+  }
+
+  // Cache helper methods
+  private getCacheKey(method: string, params: any): string {
+    return `${method}-${JSON.stringify(params)}`;
+  }
+
+  private getFromCache<T>(key: string): T | null {
+    const cached = this.cache.get(key);
+    if (cached && Date.now() < cached.expires) {
+      console.log(`📦 Cache hit for: ${key}`);
+      return cached.data as T;
+    }
+    if (cached) {
+      this.cache.delete(key); // Remove expired cache
+    }
+    return null;
+  }
+
+  private setCache(key: string, data: any): void {
+    this.cache.set(key, {
+      data,
+      expires: Date.now() + this.CACHE_TTL
+    });
+    console.log(`💾 Cached result for: ${key}`);
+  }
+
+  // Store tokens in Firestore (if user is available)
+  private async storeTokensInFirestore(tokens: StoredGoogleTokens): Promise<void> {
+    try {
+      if (!this.currentUserId) {
+        console.log('ℹ️ No current user ID, skipping Firestore token storage');
+        return;
+      }
+      
+      await tokenStorageService.saveTokens(this.currentUserId, tokens);
+      console.log('✅ DEBUGGING: Tokens also stored in Firestore');
+    } catch (error) {
+      console.warn('⚠️ Failed to store tokens in Firestore (non-critical):', error);
+      // Don't throw error - localStorage backup still works
     }
   }
 
@@ -236,7 +353,7 @@ class GoogleBusinessProfileService {
     }
   }
 
-  // Get all business accounts via backend to avoid CORS
+  // Get all business accounts via backend to avoid CORS (with timeout)
   async getBusinessAccounts(): Promise<BusinessAccount[]> {
     try {
       if (!this.accessToken) {
@@ -248,13 +365,20 @@ class GoogleBusinessProfileService {
       console.log('🔍 ACCOUNTS DEBUG: VITE_BACKEND_URL env var:', import.meta.env.VITE_BACKEND_URL);
       console.log('🔍 ACCOUNTS DEBUG: Full URL:', `${this.backendUrl}/api/accounts`);
       
+      // Add timeout control for faster failure
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
       const response = await fetch(`${this.backendUrl}/api/accounts?_t=${Date.now()}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${this.accessToken}`,
           'Content-Type': 'application/json',
         },
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -275,22 +399,32 @@ class GoogleBusinessProfileService {
         throw new Error('No Google Business Profile accounts found. Please ensure you have a verified Google Business Profile.');
       }
       
-      // Process account data and get locations
+      // Process account data and get locations with parallel loading for performance
       const businessAccounts: BusinessAccount[] = [];
       
-      for (const account of accounts) {
+      // Load all account locations in parallel for better performance
+      const locationPromises = accounts.map(async (account) => {
         console.log('🔍 DEBUGGING: Processing account:', account);
-        const locations = await this.getAccountLocations(account.name);
-        console.log(`🔍 DEBUGGING: Got ${locations.length} locations for account ${account.name}`);
-        
+        try {
+          const locations = await this.getAccountLocations(account.name);
+          console.log(`🔍 DEBUGGING: Got ${locations.length} locations for account ${account.name}`);
+          return { account, locations };
+        } catch (error) {
+          console.warn(`⚠️ Failed to load locations for account ${account.name}:`, error);
+          return { account, locations: [] };
+        }
+      });
+      
+      // Wait for all location data to load
+      const accountsWithLocations = await Promise.all(locationPromises);
+      
+      // Process results
+      for (const { account, locations } of accountsWithLocations) {
         // Transform each location into a separate BusinessAccount (profile card)
-        // This displays each location as an individual profile card as the user requested
         for (const location of locations) {
-          // For individual locations, we want to show them as VERIFIED if they're actually verified
           // Check location-specific verification status
-          let locationState = 'VERIFIED'; // Default to VERIFIED for individual locations as user stated they're verified
+          let locationState = 'VERIFIED';
           
-          // Check if location has specific verification info
           if (location.metadata?.suspended) {
             locationState = 'SUSPENDED';
           } else if (location.metadata?.duplicate) {
@@ -305,12 +439,12 @@ class GoogleBusinessProfileService {
           
           // Create a separate BusinessAccount for each location
           businessAccounts.push({
-            name: location.name, // Use location name as the account name
-            accountName: location.displayName, // Use location display name as account name
+            name: location.name,
+            accountName: location.displayName,
             type: 'BUSINESS',
             role: 'OWNER',
             state: locationState,
-            locations: [location], // Each "account" has just one location (itself)
+            locations: [location],
           });
         }
       }
@@ -366,7 +500,7 @@ class GoogleBusinessProfileService {
     }
   }
 
-  // Get locations for a specific account
+  // Get locations for a specific account (with timeout)
   async getAccountLocations(accountName: string): Promise<BusinessLocation[]> {
     try {
       if (!this.accessToken) {
@@ -375,14 +509,20 @@ class GoogleBusinessProfileService {
 
       console.log('Fetching locations via backend API with pagination:', accountName);
       
-      // Use the backend API which has pagination implemented
+      // Add timeout for faster failure handling
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+      
       const response = await fetch(`${this.backendUrl}/api/accounts/${encodeURIComponent(accountName)}/locations`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${this.accessToken}`,
           'Content-Type': 'application/json',
         },
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
 
       console.log('🔍 DEBUGGING: Backend locations response status:', response.status);
 
@@ -570,11 +710,18 @@ class GoogleBusinessProfileService {
     }
   }
 
-  // Get posts for a specific location using Backend API
+  // Get posts for a specific location using Backend API (with caching)
   async getLocationPosts(locationNameOrId: string): Promise<BusinessPost[]> {
     try {
       if (!this.accessToken) {
         throw new Error('No access token available');
+      }
+
+      // Check cache first
+      const cacheKey = this.getCacheKey('posts', { locationNameOrId });
+      const cached = this.getFromCache<BusinessPost[]>(cacheKey);
+      if (cached) {
+        return cached;
       }
 
       console.log('Fetching posts for location via backend:', locationNameOrId);
@@ -620,6 +767,9 @@ class GoogleBusinessProfileService {
         updateTime: post.updateTime,
         searchUrl: post.searchUrl
       }));
+
+      // Cache the results
+      this.setCache(cacheKey, posts);
 
       return posts;
     } catch (error) {
@@ -728,6 +878,11 @@ class GoogleBusinessProfileService {
         searchUrl: data.post?.searchUrl
       };
 
+      // Invalidate cache for this location after creating a post
+      const postCacheKey = this.getCacheKey('posts', { locationNameOrId });
+      this.cache.delete(postCacheKey);
+      console.log('🗑️ Invalidated post cache for location after creation');
+
       return post;
     } catch (error) {
       console.error('❌ Error creating location post via backend:', error);
@@ -735,11 +890,20 @@ class GoogleBusinessProfileService {
     }
   }
 
-  // Get reviews for a specific location using Backend API
+  // Get reviews for a specific location using Backend API (with caching)
   async getLocationReviews(locationName: string, options: { forceRefresh?: boolean } = {}): Promise<BusinessReview[]> {
     try {
       if (!this.accessToken) {
         throw new Error('No access token available');
+      }
+
+      // Check cache first unless force refresh is requested
+      const cacheKey = this.getCacheKey('reviews', { locationName });
+      if (!options.forceRefresh) {
+        const cached = this.getFromCache<BusinessReview[]>(cacheKey);
+        if (cached) {
+          return cached;
+        }
       }
 
       console.log('Fetching reviews for location via backend:', locationName, 'options:', options);
@@ -796,6 +960,9 @@ class GoogleBusinessProfileService {
         } : undefined
       }));
 
+      // Cache the results
+      this.setCache(cacheKey, reviews);
+
       return reviews;
     } catch (error) {
       console.error('Error fetching location reviews via backend:', error);
@@ -838,6 +1005,12 @@ class GoogleBusinessProfileService {
       const data = await response.json();
       console.log('✅ Review reply sent successfully via backend:', data);
       
+      // Invalidate reviews cache for this location after replying
+      const locationName = `accounts/${reviewName.split('/')[1]}/locations/${locationId}`;
+      const reviewCacheKey = this.getCacheKey('reviews', { locationName });
+      this.cache.delete(reviewCacheKey);
+      console.log('🗑️ Invalidated review cache for location after reply');
+      
     } catch (error) {
       console.error('❌ Error replying to review via backend:', error);
       throw error;
@@ -858,13 +1031,24 @@ class GoogleBusinessProfileService {
         }
       }
       
-      // Clear stored tokens and connection flags
+      // Clear stored tokens from both localStorage and Firestore
       localStorage.removeItem('google_business_tokens');
       localStorage.removeItem('google_business_connected');
       localStorage.removeItem('google_business_connection_time');
       
-      // Reset access token
+      // Clear from Firestore if user ID is available
+      if (this.currentUserId) {
+        try {
+          await tokenStorageService.deleteTokens(this.currentUserId);
+          console.log('✅ Tokens cleared from Firestore');
+        } catch (firestoreError) {
+          console.warn('⚠️ Failed to clear tokens from Firestore:', firestoreError);
+        }
+      }
+      
+      // Reset access token and user ID
       this.accessToken = null;
+      this.currentUserId = null;
     } catch (error) {
       console.error('Error disconnecting Google Business Profile:', error);
       throw error;

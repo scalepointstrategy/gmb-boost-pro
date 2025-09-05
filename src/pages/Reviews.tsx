@@ -131,7 +131,15 @@ const Reviews = () => {
 
   // Fetch reviews with enhanced data
   const fetchReviews = async (isRefresh = false) => {
-    if (googleLoading || !isConnected || !accounts.length) {
+    // Keep loading state true while Google data is loading
+    if (googleLoading) {
+      setLoading(true);
+      return;
+    }
+
+    // If not connected or no accounts, show empty state after a brief loading
+    if (!isConnected || !accounts.length) {
+      setReviews([]);
       setLoading(false);
       return;
     }
@@ -143,48 +151,73 @@ const Reviews = () => {
     }
     
     try {
-      console.log('Reviews: Fetching reviews across all profiles');
+      console.log('Reviews: Fetching reviews across all profiles (PARALLEL LOADING)');
       
-      const allReviews: Review[] = [];
-      
-      // Fetch reviews for each location
-      for (const account of accounts) {
-        for (const location of account.locations) {
-          try {
-            console.log(`📍 Frontend: Processing location - Name: "${location.displayName}", ID: "${location.locationId}", Full Name: "${location.name}"`);
-            
-            const locationReviews = await googleBusinessProfileService.getLocationReviews(location.name);
-            
-            console.log(`📍 Frontend: Received ${locationReviews.length} reviews for ${location.displayName}`);
-            
-            // Convert BusinessReview to Review format with sentiment analysis
-            const convertedReviews: Review[] = locationReviews.map(review => {
-              const reviewData = {
-                id: review.id,
-                profileId: location.locationId,
-                profileName: location.displayName,
-                fullReviewName: review.name, // Store the full review name for API calls
-                author: review.reviewer.displayName,
-                rating: review.starRating,
-                content: review.comment || '',
-                createdAt: review.createTime,
-                replied: !!review.reply,
-                replyContent: review.reply?.comment,
-                repliedAt: review.reply?.updateTime,
-                sentiment: analyzeSentiment(review.starRating, review.comment || '')
-              };
-              console.log(`📍 Frontend: Created review with profileName: "${reviewData.profileName}", fullReviewName: "${reviewData.fullReviewName}"`);
-              return reviewData;
-            });
-            
-            allReviews.push(...convertedReviews);
-          } catch (error) {
-            console.error(`Error fetching reviews for ${location.displayName}:`, error);
+      // Create all location tasks for parallel execution
+      const locationTasks = accounts.flatMap(account => 
+        account.locations.map(location => ({
+          account,
+          location,
+          task: async () => {
+            try {
+              console.log(`📍 Frontend: Processing location - Name: "${location.displayName}", ID: "${location.locationId}"`);
+              
+              // Add timeout to prevent individual locations from hanging
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout per location
+              
+              const locationReviews = await googleBusinessProfileService.getLocationReviews(location.name, { forceRefresh: isRefresh });
+              clearTimeout(timeoutId);
+              
+              console.log(`📍 Frontend: Received ${locationReviews.length} reviews for ${location.displayName}`);
+              
+              // Convert BusinessReview to Review format with sentiment analysis
+              const convertedReviews: Review[] = locationReviews.map(review => {
+                const reviewData = {
+                  id: review.id,
+                  profileId: location.locationId,
+                  profileName: location.displayName,
+                  fullReviewName: review.name,
+                  author: review.reviewer.displayName,
+                  rating: review.starRating,
+                  content: review.comment || '',
+                  createdAt: review.createTime,
+                  replied: !!review.reply,
+                  replyContent: review.reply?.comment,
+                  repliedAt: review.reply?.updateTime,
+                  sentiment: analyzeSentiment(review.starRating, review.comment || '')
+                };
+                return reviewData;
+              });
+              
+              return convertedReviews;
+            } catch (error) {
+              console.warn(`⚠️ Failed to fetch reviews for ${location.displayName}:`, error);
+              return []; // Return empty array instead of failing completely
+            }
           }
-        }
-      }
+        }))
+      );
       
-      console.log('Reviews: Loaded', allReviews.length, 'reviews');
+      console.log(`🚀 Starting parallel loading of reviews for ${locationTasks.length} locations`);
+      const startTime = Date.now();
+      
+      // Execute all tasks in parallel with a global timeout
+      const reviewPromises = locationTasks.map(({ task }) => task());
+      const reviewsArrays = await Promise.allSettled(reviewPromises);
+      
+      // Collect all successful results
+      const allReviews: Review[] = [];
+      reviewsArrays.forEach((result, index) => {
+        if (result.status === 'fulfilled') {
+          allReviews.push(...result.value);
+        } else {
+          console.warn(`Location ${index} failed:`, result.reason);
+        }
+      });
+      
+      const loadTime = Date.now() - startTime;
+      console.log(`✅ Parallel loading completed in ${loadTime}ms: Loaded ${allReviews.length} reviews from ${locationTasks.length} locations`);
       setReviews(allReviews);
     } catch (error) {
       console.error("Error fetching reviews:", error);
@@ -196,6 +229,8 @@ const Reviews = () => {
   };
 
   useEffect(() => {
+    // Always start with loading state
+    setLoading(true);
     fetchReviews();
   }, [accounts, isConnected, googleLoading]);
 

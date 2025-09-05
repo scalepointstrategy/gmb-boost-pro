@@ -7,6 +7,10 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
+    "dev:local": "set RUN_MODE=LOCAL && nodemon server.js",
+    "dev:azure": "set RUN_MODE=AZURE && nodemon server.js",
+    "start:local": "set RUN_MODE=LOCAL && node server.js",
+    "start:azure": "set RUN_MODE=AZURE && node server.js",
     "start:production": "node start-production.js",
     "docker:build": "docker build -t gmb-boost-pro-backend:latest .",
     "docker:run": "docker-compose up -d",

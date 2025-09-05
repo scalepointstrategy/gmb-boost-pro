@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { BusinessAccount, BusinessLocation, googleBusinessProfileService } from '@/lib/googleBusinessProfile';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface UseGoogleBusinessProfileReturn {
   isConnected: boolean;
@@ -14,6 +15,7 @@ interface UseGoogleBusinessProfileReturn {
   selectAccount: (account: BusinessAccount) => void;
   selectLocation: (location: BusinessLocation) => void;
   refreshAccounts: () => Promise<void>;
+  handleOAuthCallback: (code: string) => Promise<void>;
 }
 
 export const useGoogleBusinessProfile = (): UseGoogleBusinessProfileReturn => {
@@ -24,6 +26,7 @@ export const useGoogleBusinessProfile = (): UseGoogleBusinessProfileReturn => {
   const [selectedLocation, setSelectedLocation] = useState<BusinessLocation | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const { currentUser } = useAuth();
 
   // Load business accounts
   const loadBusinessAccounts = useCallback(async () => {
@@ -61,9 +64,14 @@ export const useGoogleBusinessProfile = (): UseGoogleBusinessProfileReturn => {
     const initializeConnection = async () => {
       setIsLoading(true);
       console.log('🔍 DEBUGGING: Initializing Google Business Profile connection...');
+      console.log('🔍 DEBUGGING: Firebase user:', currentUser?.uid);
       
       try {
-        const hasValidTokens = await googleBusinessProfileService.loadStoredTokens();
+        // Set the current user ID in the service for Firestore operations
+        googleBusinessProfileService.setCurrentUserId(currentUser?.uid || null);
+        
+        // Load tokens with Firebase user ID
+        const hasValidTokens = await googleBusinessProfileService.loadStoredTokens(currentUser?.uid);
         console.log('🔍 DEBUGGING: Has valid tokens?', hasValidTokens);
         console.log('🔍 DEBUGGING: Service isConnected?', googleBusinessProfileService.isConnected());
         console.log('🔍 DEBUGGING: LocalStorage tokens:', localStorage.getItem('google_business_tokens'));
@@ -104,13 +112,17 @@ export const useGoogleBusinessProfile = (): UseGoogleBusinessProfileReturn => {
     return () => {
       window.removeEventListener('googleBusinessProfileConnected', handleConnectionEvent as EventListener);
     };
-  }, [toast, loadBusinessAccounts]);
+  }, [toast, loadBusinessAccounts, currentUser]);
 
   // Connect to Google Business Profile (frontend-only)
   const connectGoogleBusiness = useCallback(async () => {
     try {
       setIsLoading(true);
       console.log('🔄 Starting Google Business Profile connection...');
+      console.log('🔍 DEBUGGING: Firebase user for connection:', currentUser?.uid);
+      
+      // Set the current user ID in the service before connecting
+      googleBusinessProfileService.setCurrentUserId(currentUser?.uid || null);
       
       await googleBusinessProfileService.connectGoogleBusiness();
       setIsConnected(true);
@@ -136,7 +148,7 @@ export const useGoogleBusinessProfile = (): UseGoogleBusinessProfileReturn => {
     } finally {
       setIsLoading(false);
     }
-  }, [loadBusinessAccounts, toast]);
+  }, [loadBusinessAccounts, toast, currentUser]);
 
 
   // Disconnect from Google Business Profile
@@ -184,6 +196,11 @@ export const useGoogleBusinessProfile = (): UseGoogleBusinessProfileReturn => {
     }
   }, [isConnected, loadBusinessAccounts]);
 
+  // Handle OAuth callback (placeholder - not used in current implementation)
+  const handleOAuthCallback = useCallback(async (code: string) => {
+    console.log('OAuth callback received (not implemented in current frontend-only flow):', code);
+  }, []);
+
   return {
     isConnected,
     isLoading,
@@ -196,6 +213,7 @@ export const useGoogleBusinessProfile = (): UseGoogleBusinessProfileReturn => {
     selectAccount,
     selectLocation,
     refreshAccounts,
+    handleOAuthCallback,
   };
 };
 

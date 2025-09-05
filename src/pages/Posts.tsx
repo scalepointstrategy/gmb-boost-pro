@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Plus, Calendar, Clock, Image, Search, Filter, MoreHorizontal, Building2 } from "lucide-react";
+import { Plus, Calendar, Clock, Image, Search, Filter, MoreHorizontal, Users } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -54,42 +54,80 @@ const Posts = () => {
   useEffect(() => {
     // Real-time posts from Google Business Profile API
     const fetchPosts = async () => {
-      if (googleLoading || !isConnected || !accounts.length) {
+      // Keep loading state true while Google data is loading
+      if (googleLoading) {
+        setLoading(true);
+        return;
+      }
+
+      // If not connected or no accounts, show empty state after a brief loading
+      if (!isConnected || !accounts.length) {
+        setPosts([]);
         setLoading(false);
         return;
       }
 
       setLoading(true);
       try {
-        console.log('Posts: Fetching posts across all profiles');
+        console.log('Posts: Fetching posts across all profiles (PARALLEL LOADING)');
         
-        const allPosts: Post[] = [];
-        
-        // Fetch posts for each location
-        for (const account of accounts) {
-          for (const location of account.locations) {
-            try {
-              // Use locationId instead of the full location name to avoid path encoding issues
-              const locationPosts = await googleBusinessProfileService.getLocationPosts(location.locationId);
-              
-              // Convert BusinessPost to Post format
-              const convertedPosts: Post[] = locationPosts.map(post => ({
-                id: post.id,
-                profileId: location.locationId,
-                profileName: location.displayName,
-                content: post.summary || '',
-                status: 'published' as const,
-                postedAt: post.createTime
-              }));
-              
-              allPosts.push(...convertedPosts);
-            } catch (error) {
-              console.error(`Error fetching posts for ${location.displayName}:`, error);
+        // Create all location tasks for parallel execution
+        const locationTasks = accounts.flatMap(account => 
+          account.locations.map(location => ({
+            account,
+            location,
+            task: async () => {
+              try {
+                console.log(`📍 Posts: Processing location - "${location.displayName}"`);
+                
+                // Add timeout to prevent individual locations from hanging
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 6000); // 6 second timeout per location
+                
+                // Use locationId to avoid path encoding issues
+                const locationPosts = await googleBusinessProfileService.getLocationPosts(location.locationId);
+                clearTimeout(timeoutId);
+                
+                console.log(`📍 Posts: Received ${locationPosts.length} posts for ${location.displayName}`);
+                
+                // Convert BusinessPost to Post format
+                const convertedPosts: Post[] = locationPosts.map(post => ({
+                  id: post.id,
+                  profileId: location.locationId,
+                  profileName: location.displayName,
+                  content: post.summary || '',
+                  status: 'published' as const,
+                  postedAt: post.createTime
+                }));
+                
+                return convertedPosts;
+              } catch (error) {
+                console.warn(`⚠️ Failed to fetch posts for ${location.displayName}:`, error);
+                return []; // Return empty array instead of failing completely
+              }
             }
-          }
-        }
+          }))
+        );
         
-        console.log('Posts: Loaded', allPosts.length, 'posts');
+        console.log(`🚀 Starting parallel loading of posts for ${locationTasks.length} locations`);
+        const startTime = Date.now();
+        
+        // Execute all tasks in parallel
+        const postPromises = locationTasks.map(({ task }) => task());
+        const postsArrays = await Promise.allSettled(postPromises);
+        
+        // Collect all successful results
+        const allPosts: Post[] = [];
+        postsArrays.forEach((result, index) => {
+          if (result.status === 'fulfilled') {
+            allPosts.push(...result.value);
+          } else {
+            console.warn(`Location ${index} failed:`, result.reason);
+          }
+        });
+        
+        const loadTime = Date.now() - startTime;
+        console.log(`✅ Parallel loading completed in ${loadTime}ms: Loaded ${allPosts.length} posts from ${locationTasks.length} locations`);
         setPosts(allPosts);
         setLoading(false);
       } catch (error) {
@@ -99,6 +137,8 @@ const Posts = () => {
       }
     };
 
+    // Always start with loading state
+    setLoading(true);
     fetchPosts();
   }, [accounts, isConnected, googleLoading]);
 
@@ -343,7 +383,7 @@ const Posts = () => {
               {/* Business Profile Filter */}
               <Select value={selectedProfileFilter} onValueChange={setSelectedProfileFilter}>
                 <SelectTrigger className="w-full sm:w-64">
-                  <Building2 className="mr-2 h-4 w-4" />
+                  <Users className="mr-2 h-4 w-4" />
                   <SelectValue placeholder="Select business profile" />
                 </SelectTrigger>
                 <SelectContent>
