@@ -50,6 +50,7 @@ const ReviewsTab = ({ profileId }: ReviewsTabProps) => {
     maxRating: undefined as number | undefined,
   });
 
+
   // Real-time reviews from Google Business Profile API
   const fetchReviews = async (isRefresh = false) => {
     if (!profileId) {
@@ -297,6 +298,7 @@ const ReviewsTab = ({ profileId }: ReviewsTabProps) => {
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   };
+
 
   return (
     <Tabs defaultValue="reviews" className="w-full">

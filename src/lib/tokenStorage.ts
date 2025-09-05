@@ -40,13 +40,23 @@ class TokenStorageService {
       const now = Date.now();
       const expiresAt = now + (tokens.expires_in * 1000);
 
-      const tokenData: UserTokenData = {
-        googleTokens: {
+      // Filter out undefined values for Firestore compatibility
+      const cleanTokens = Object.fromEntries(
+        Object.entries({
           ...tokens,
           stored_at: now,
           expires_at: expiresAt
-        },
-        userInfo,
+        }).filter(([key, value]) => value !== undefined)
+      );
+
+      // Also filter undefined values from userInfo if it exists
+      const cleanUserInfo = userInfo ? Object.fromEntries(
+        Object.entries(userInfo).filter(([key, value]) => value !== undefined)
+      ) : undefined;
+
+      const tokenData: UserTokenData = {
+        googleTokens: cleanTokens as StoredGoogleTokens,
+        ...(cleanUserInfo && { userInfo: cleanUserInfo }),
         lastUpdated: now
       };
 

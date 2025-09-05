@@ -136,7 +136,7 @@ const CreatePostModal = ({ open, onOpenChange, onSubmit, profileId, availablePro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[525px]">
+      <DialogContent className="w-[95vw] max-w-[525px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New Post</DialogTitle>
           <DialogDescription>
@@ -144,7 +144,7 @@ const CreatePostModal = ({ open, onOpenChange, onSubmit, profileId, availablePro
           </DialogDescription>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
           {/* Business Profile Selector */}
           {availableProfiles.length > 0 && (
             <div className="space-y-2">
@@ -176,7 +176,7 @@ const CreatePostModal = ({ open, onOpenChange, onSubmit, profileId, availablePro
               placeholder="What would you like to share with your customers?"
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              className="min-h-[100px]"
+              className="min-h-[80px] sm:min-h-[100px] text-sm"
               required
             />
             <div className="text-xs text-muted-foreground text-right">
@@ -192,7 +192,7 @@ const CreatePostModal = ({ open, onOpenChange, onSubmit, profileId, availablePro
                 <img 
                   src={imagePreview} 
                   alt="Preview" 
-                  className="w-full h-32 object-cover rounded-lg"
+                  className="w-full h-24 sm:h-32 object-cover rounded-lg"
                 />
                 <Button
                   type="button"
@@ -285,7 +285,7 @@ const CreatePostModal = ({ open, onOpenChange, onSubmit, profileId, availablePro
 
           {/* Custom Date/Time */}
           {scheduleType === "custom" && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-2">
                 <Label>Date</Label>
                 <Popover>
@@ -326,18 +326,19 @@ const CreatePostModal = ({ open, onOpenChange, onSubmit, profileId, availablePro
             </div>
           )}
 
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
             <Button 
               type="button" 
               variant="outline" 
               onClick={() => onOpenChange(false)}
+              className="w-full sm:w-auto order-2 sm:order-1"
             >
               Cancel
             </Button>
             <Button 
               type="submit" 
               disabled={loading || !content.trim() || !selectedProfileId}
-              className="bg-primary hover:bg-primary-hover"
+              className="bg-primary hover:bg-primary-hover w-full sm:w-auto order-1 sm:order-2"
             >
               {loading ? "Creating..." : scheduleType === "now" ? "Post Now" : "Schedule Post"}
             </Button>

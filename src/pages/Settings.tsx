@@ -70,29 +70,31 @@ const Settings = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground mt-1">
+      <div className="px-1">
+        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight">Settings</h1>
+        <p className="text-sm sm:text-base text-muted-foreground mt-1">
           Manage your account preferences and business profile settings
         </p>
       </div>
 
-      <Tabs defaultValue="connections" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="connections" className="flex items-center gap-2">
-            <Building2 className="h-4 w-4" />
-            Connections
+      <Tabs defaultValue="connections" className="space-y-4 sm:space-y-6">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto">
+          <TabsTrigger value="connections" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 py-2">
+            <Building2 className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Connections</span>
+            <span className="sm:hidden">Connect</span>
           </TabsTrigger>
-          <TabsTrigger value="notifications" className="flex items-center gap-2">
-            <Bell className="h-4 w-4" />
-            Notifications
+          <TabsTrigger value="notifications" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 py-2">
+            <Bell className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Notifications</span>
+            <span className="sm:hidden">Notify</span>
           </TabsTrigger>
-          <TabsTrigger value="account" className="flex items-center gap-2">
-            <User className="h-4 w-4" />
+          <TabsTrigger value="account" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 py-2">
+            <User className="h-3 w-3 sm:h-4 sm:w-4" />
             Account
           </TabsTrigger>
-          <TabsTrigger value="data" className="flex items-center gap-2">
-            <Download className="h-4 w-4" />
+          <TabsTrigger value="data" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 py-2">
+            <Download className="h-3 w-3 sm:h-4 sm:w-4" />
             Data
           </TabsTrigger>
         </TabsList>

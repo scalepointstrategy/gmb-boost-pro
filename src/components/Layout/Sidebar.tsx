@@ -9,10 +9,16 @@ import {
   Settings, 
   Search,
   MessageSquarePlus,
-  Users
+  Users,
+  X
 } from "lucide-react";
 
-const Sidebar = () => {
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
   const location = useLocation();
 
   const navItems = [
@@ -32,15 +38,33 @@ const Sidebar = () => {
   };
 
   return (
-    <div className="fixed left-0 top-0 z-40 h-screen w-64 bg-card border-r border-border">
+    <div className={cn(
+      "fixed left-0 top-0 z-40 h-screen w-64 bg-card border-r border-border transition-transform duration-300 ease-in-out",
+      "lg:translate-x-0", // Always visible on desktop
+      isOpen ? "translate-x-0" : "-translate-x-full" // Mobile: slide in/out based on isOpen
+    )}>
       {/* Header - Match topbar height */}
-      <div className="h-16 flex items-center p-4 border-b border-border bg-card">
-        <div className="flex items-center gap-2">
+      <div className="h-16 flex items-center justify-between p-4 border-b border-border bg-card">
+        {/* Mobile close button */}
+        <div className="lg:hidden">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClose}
+            className="h-8 w-8 p-0"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="flex items-center gap-2 lg:mx-0 mx-auto">
           <Building2 className="h-6 w-6 text-primary" />
           <span className="font-bold text-lg bg-gradient-primary bg-clip-text text-transparent">
             GMB BOOST PRO
           </span>
         </div>
+        
+        {/* Spacer for mobile to center the logo */}
+        <div className="lg:hidden w-8"></div>
       </div>
 
       {/* Navigation */}
@@ -111,12 +135,12 @@ const Sidebar = () => {
 
       {/* Upgrade Section */}
       <div className="absolute bottom-4 left-4 right-4">
-        <div className="bg-gradient-primary p-4 rounded-lg text-primary-foreground">
+        <div className="bg-gradient-primary p-3 sm:p-4 rounded-lg text-primary-foreground">
           <div className="flex items-center gap-3 mb-3">
-            <MessageSquarePlus className="h-6 w-6" />
-            <h3 className="font-semibold text-base">Ask for Reviews</h3>
+            <MessageSquarePlus className="h-5 w-5 sm:h-6 sm:w-6" />
+            <h3 className="font-semibold text-sm sm:text-base">Ask for Reviews</h3>
           </div>
-          <p className="text-sm opacity-90 mb-3">
+          <p className="text-xs sm:text-sm opacity-90 mb-3">
             Generate QR codes for easy reviews
           </p>
           <a 
@@ -128,7 +152,7 @@ const Sidebar = () => {
             <Button 
               variant="secondary" 
               size="sm" 
-              className="w-full text-primary hover:bg-white/90"
+              className="w-full text-primary hover:bg-white/90 text-xs sm:text-sm"
             >
               Generate QR
             </Button>

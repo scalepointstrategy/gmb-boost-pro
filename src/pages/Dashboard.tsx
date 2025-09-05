@@ -17,32 +17,31 @@ const Dashboard = () => {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-center relative">
+        <div className="flex items-center justify-center relative px-4">
           <img 
             src="/Upgrade plan banner.svg" 
             alt="Upgrade Plan Banner" 
-            style={{ width: '1100px', height: 'auto' }}
-            className="max-w-full"
+            className="w-full max-w-4xl h-auto"
           />
           {/* Interactive button overlay positioned over the banner button */}
           <Link 
             to="/dashboard/settings" 
-            className="absolute"
+            className="absolute bottom-4 left-1/2 transform -translate-x-1/2 sm:left-auto sm:transform-none"
             style={{
-              left: '110px', // Position button slightly to the right
-              top: '100%',
-              transform: 'translateY(0%)', // Button positioned below banner edge
-              width: '180px',
-              height: '45px'
+              left: 'clamp(20px, 10%, 110px)',
+              bottom: '10%',
+              width: 'clamp(140px, 20%, 180px)',
+              height: 'clamp(35px, 8%, 45px)'
             }}
           >
             <Button 
-              className="w-full h-full bg-white hover:bg-gray-100 font-medium text-sm rounded-lg border-0 shadow-lg transition-all duration-200"
+              className="w-full h-full bg-white hover:bg-gray-100 font-medium text-xs sm:text-sm rounded-lg border-0 shadow-lg transition-all duration-200"
               style={{
                 color: '#1B29CB'
               }}
             >
-              Connect Your GBP
+              <span className="hidden sm:inline">Connect Your GBP</span>
+              <span className="sm:hidden">Connect GBP</span>
             </Button>
           </Link>
         </div>
@@ -55,7 +54,7 @@ const Dashboard = () => {
           </div>
         </div>
         
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <Card key={i}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -76,32 +75,32 @@ const Dashboard = () => {
   if (!isConnected) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-center relative">
+        <div className="flex items-center justify-center relative px-4">
           <img 
             src="/Upgrade plan banner.svg" 
             alt="Upgrade Plan Banner" 
-            style={{ width: '1100px', height: 'auto' }}
-            className="max-w-full"
+            className="w-full max-w-4xl h-auto"
           />
           {/* Interactive button overlay positioned over the banner button */}
           <Link 
             to="/dashboard/settings" 
             className="absolute"
             style={{
-              left: '110px', // Position button slightly to the right
+              left: 'clamp(20px, 10%, 110px)',
               top: '60%',
-              transform: 'translateY(0%)', // Button positioned below banner edge
-              width: '180px',
-              height: '45px'
+              transform: 'translateY(-50%)',
+              width: 'clamp(140px, 20%, 180px)',
+              height: 'clamp(35px, 8%, 45px)'
             }}
           >
             <Button 
-              className="w-full h-full bg-white hover:bg-gray-100 font-medium text-sm rounded-lg border-0 shadow-lg transition-all duration-200"
+              className="w-full h-full bg-white hover:bg-gray-100 font-medium text-xs sm:text-sm rounded-lg border-0 shadow-lg transition-all duration-200"
               style={{
                 color: '#1B29CB'
               }}
             >
-              Connect Your GBP
+              <span className="hidden sm:inline">Connect Your GBP</span>
+              <span className="sm:hidden">Connect GBP</span>
             </Button>
           </Link>
         </div>
@@ -132,24 +131,25 @@ const Dashboard = () => {
     <div className="space-y-6">
 
       {/* Header with Manage Profiles text and Create Post button */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center gap-2">
         <div className="flex justify-start">
-          <h2 className="text-lg font-semibold" style={{ fontFamily: 'Onest' }}>
+          <h2 className="text-base sm:text-lg font-semibold truncate" style={{ fontFamily: 'Onest' }}>
             Manage Profiles
           </h2>
         </div>
-        <div className="flex justify-end">
+        <div className="flex justify-end flex-shrink-0">
           <Link to="/dashboard/posts">
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Post
+            <Button size="sm" className="text-xs sm:text-sm px-2 sm:px-4">
+              <Plus className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Create Post</span>
+              <span className="sm:hidden">Post</span>
             </Button>
           </Link>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Profiles</CardTitle>
@@ -197,33 +197,34 @@ const Dashboard = () => {
 
       {/* Business Profiles */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Your Business Profiles</h2>
-          <Link to="/dashboard/settings">
-            <Button variant="outline" size="sm">
-              <Settings className="mr-2 h-4 w-4" />
-              Manage Connections
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-lg sm:text-xl font-semibold truncate">Your Business Profiles</h2>
+          <Link to="/dashboard/settings" className="flex-shrink-0">
+            <Button variant="outline" size="sm" className="text-xs sm:text-sm px-2 sm:px-3">
+              <Settings className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Manage Connections</span>
+              <span className="sm:hidden">Manage</span>
             </Button>
           </Link>
         </div>
 
         {profiles && profiles.length > 0 ? (
           <div className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {profiles.map((profile: any, index: number) => {
                 // Get the first location since each profile now has exactly one location
                 const location = profile.locations[0];
                 const locationId = location.locationId || location.name?.split('/').pop() || index;
                 
                 return (
-                  <div key={index} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 cursor-pointer hover:shadow-md transition-shadow flex flex-col h-full">
+                  <div key={index} className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4 cursor-pointer hover:shadow-md transition-shadow flex flex-col h-full">
                     {/* Content area that grows */}
                     <div className="flex-1">
                       {/* Header with name and verification badge */}
                       <div className="flex items-center justify-between mb-3">
                         <h3 
-                          className="text-base font-semibold text-black truncate flex-1 mr-2" 
-                          style={{ fontSize: '16px', fontFamily: 'Onest' }}
+                          className="text-sm sm:text-base font-semibold text-black truncate flex-1 mr-2" 
+                          style={{ fontSize: 'clamp(14px, 2.5vw, 16px)', fontFamily: 'Onest' }}
                           title={profile.accountName}
                         >
                           {profile.accountName}
@@ -242,7 +243,7 @@ const Dashboard = () => {
                       {/* Location */}
                       <div className="flex items-center mb-3">
                         <MapPin className="h-4 w-4 text-black mr-2" />
-                        <span className="text-sm text-black" style={{ fontSize: '14px', fontFamily: 'Onest' }}>
+                        <span className="text-xs sm:text-sm text-black truncate" style={{ fontSize: 'clamp(12px, 2vw, 14px)', fontFamily: 'Onest' }}>
                           {location.address?.locality || 'Location'} {location.address?.administrativeArea && `, ${location.address.administrativeArea}`}
                         </span>
                       </div>
@@ -275,10 +276,10 @@ const Dashboard = () => {
                     <div className="mt-4">
                       <Link to={`/dashboard/profiles/${locationId}`} className="block">
                         <button 
-                          className="w-full py-2 px-4 rounded-lg text-white font-medium transition-colors"
+                          className="w-full py-2 px-3 sm:px-4 rounded-lg text-white font-medium transition-colors"
                           style={{ 
                             backgroundColor: '#1E2DCD',
-                            fontSize: '14px',
+                            fontSize: 'clamp(12px, 2vw, 14px)',
                             fontFamily: 'Onest'
                           }}
                         >

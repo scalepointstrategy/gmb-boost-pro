@@ -99,13 +99,13 @@ const ProfileDetails = () => {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 sm:gap-4">
         <Link to="/dashboard">
-          <Button variant="ghost" size="sm">
+          <Button variant="ghost" size="sm" className="h-8 w-8 sm:h-10 sm:w-10 p-0 sm:p-2">
             <ArrowLeft className="h-4 w-4" />
           </Button>
         </Link>
-        <h1 className="text-3xl font-bold tracking-tight">{location.displayName}</h1>
+        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight truncate">{location.displayName}</h1>
       </div>
 
       {/* Profile Overview */}
@@ -114,9 +114,9 @@ const ProfileDetails = () => {
           <CardTitle className="text-xl">Profile Overview</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
             {/* Basic Info */}
-            <div className="lg:col-span-2 space-y-4">
+            <div className="lg:col-span-2 space-y-3 sm:space-y-4">
               <div className="flex items-start gap-2">
                 <MapPin className="h-4 w-4 mt-1 text-muted-foreground" />
                 <span className="text-sm">
@@ -159,7 +159,7 @@ const ProfileDetails = () => {
             </div>
             
             {/* Stats */}
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               <div className="flex items-center gap-2">
                 <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
                 <span className="text-xl font-bold">--</span>
@@ -183,15 +183,15 @@ const ProfileDetails = () => {
 
       {/* Tabs */}
       <Tabs defaultValue="auto-posting" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8">
-          <TabsTrigger value="auto-posting">Auto Posting</TabsTrigger>
-          <TabsTrigger value="posts">Posts</TabsTrigger>
-          <TabsTrigger value="reviews">Reviews</TabsTrigger>
-          <TabsTrigger value="photos">Photos</TabsTrigger>
-          <TabsTrigger value="edit">Edit Profile</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
-          <TabsTrigger value="insights">Insights</TabsTrigger>
-          <TabsTrigger value="performance">Performance</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 h-auto">
+          <TabsTrigger value="auto-posting" className="text-xs sm:text-sm px-2 sm:px-3">Auto Posting</TabsTrigger>
+          <TabsTrigger value="posts" className="text-xs sm:text-sm px-2 sm:px-3">Posts</TabsTrigger>
+          <TabsTrigger value="reviews" className="text-xs sm:text-sm px-2 sm:px-3">Reviews</TabsTrigger>
+          <TabsTrigger value="photos" className="text-xs sm:text-sm px-2 sm:px-3">Photos</TabsTrigger>
+          <TabsTrigger value="edit" className="text-xs sm:text-sm px-2 sm:px-3">Edit Profile</TabsTrigger>
+          <TabsTrigger value="settings" className="text-xs sm:text-sm px-2 sm:px-3">Settings</TabsTrigger>
+          <TabsTrigger value="insights" className="text-xs sm:text-sm px-2 sm:px-3">Insights</TabsTrigger>
+          <TabsTrigger value="performance" className="text-xs sm:text-sm px-2 sm:px-3">Performance</TabsTrigger>
         </TabsList>
         
         <TabsContent value="auto-posting">

@@ -201,46 +201,46 @@ export class OpenAIService {
     
     const diverseTemplates = [
       // Success stories
-      `Join the growing number of satisfied customers choosing ${businessName}${locationText}! Our expertise in ${keywordArray[0] || category} speaks for itself. Experience the difference today!`,
+      `Join satisfied customers choosing ${businessName}${locationText}! Our ${keywordArray[0] || category} expertise speaks for itself. Experience the difference today!`,
       
       // Problem solving
-      `Struggling with ${keywordArray[0] || category}? ${businessName}${locationText} has the solution! We understand your needs and deliver results that exceed expectations.`,
+      `Need ${keywordArray[0] || category}? ${businessName}${locationText} has solutions! We understand your needs and deliver results that exceed expectations.`,
       
       // Quality focus
-      `Quality matters at ${businessName}${locationText}! We're passionate about ${keywordArray[0] || category} and dedicated to delivering excellence every time. See why customers trust us!`,
+      `Quality matters at ${businessName}${locationText}! We're passionate about ${keywordArray[0] || category} and dedicated to excellence. See why customers trust us!`,
       
       // Community connection
-      `Proud to serve ${locationName || 'our community'}! ${businessName} brings ${keywordArray[0] || 'professional'} ${category} services right to your neighborhood. Contact us today!`,
+      `Proud to serve ${locationName || 'our community'}! ${businessName} brings ${keywordArray[0] || 'professional'} ${category} services to your neighborhood. Contact us today!`,
       
       // Innovation angle
-      `Discover a better way with ${businessName}${locationText}! We combine ${keywordArray[0] || 'modern'} approaches with ${keywordArray[1] || 'personal'} attention for outstanding results.`,
+      `Discover better with ${businessName}${locationText}! We combine ${keywordArray[0] || 'modern'} approaches with ${keywordArray[1] || 'personal'} attention for outstanding results.`,
       
       // Experience highlight
-      `What sets ${businessName}${locationText} apart? Our commitment to ${keywordArray[0] || 'exceptional'} ${category} services and genuine customer care. Experience it yourself!`,
+      `What sets ${businessName}${locationText} apart? Our commitment to ${keywordArray[0] || 'exceptional'} ${category} services and genuine customer care. Experience it!`,
       
       // Results oriented
-      `Get results that matter with ${businessName}${locationText}! We specialize in ${keywordArray[0] || category} solutions that make a real difference. Ready to get started?`,
+      `Get real results with ${businessName}${locationText}! We specialize in ${keywordArray[0] || category} solutions that make a difference. Ready to start?`,
       
       // Trust building
-      `Trust ${businessName}${locationText} for all your ${category} needs! Our ${keywordArray[0] || 'reliable'} service and ${keywordArray[1] || 'professional'} approach deliver every time.`,
+      `Trust ${businessName}${locationText} for ${category} needs! Our ${keywordArray[0] || 'reliable'} service and ${keywordArray[1] || 'professional'} approach deliver every time.`,
       
       // Value proposition
-      `Why choose ${businessName}${locationText}? We deliver ${keywordArray[0] || 'outstanding'} value through ${keywordArray[1] || 'expert'} ${category} services. Find out more today!`,
+      `Why choose ${businessName}${locationText}? We deliver ${keywordArray[0] || 'outstanding'} value through ${keywordArray[1] || 'expert'} ${category} services. Find out more!`,
       
       // Customer focused
-      `Your ${category} goals matter to us at ${businessName}${locationText}! We provide ${keywordArray[0] || 'personalized'} solutions with ${keywordArray[1] || 'exceptional'} care.`,
+      `Your ${category} goals matter at ${businessName}${locationText}! We provide ${keywordArray[0] || 'personalized'} solutions with ${keywordArray[1] || 'exceptional'} care.`,
       
       // Expertise angle
-      `Looking for ${category} expertise? ${businessName}${locationText} brings years of experience in ${keywordArray[0] || 'professional'} service delivery. Let us help you succeed!`,
+      `Looking for ${category} expertise? ${businessName}${locationText} brings years of ${keywordArray[0] || 'professional'} service experience. Let us help you succeed!`,
       
       // Unique approach
-      `At ${businessName}${locationText}, we do ${category} differently! Our focus on ${keywordArray[0] || 'quality'} and ${keywordArray[1] || 'customer satisfaction'} sets us apart.`,
+      `At ${businessName}${locationText}, we do ${category} differently! Our focus on ${keywordArray[0] || 'quality'} and ${keywordArray[1] || 'satisfaction'} sets us apart.`,
       
       // Invitation style
-      `Ready to experience excellence? Visit ${businessName}${locationText} for ${keywordArray[0] || 'professional'} ${category} services that truly make a difference!`,
+      `Ready for excellence? Visit ${businessName}${locationText} for ${keywordArray[0] || 'professional'} ${category} services that truly make a difference!`,
       
       // Achievement focused
-      `Celebrating another successful ${category} project! ${businessName}${locationText} continues to deliver ${keywordArray[0] || 'outstanding'} results for our valued customers.`,
+      `Celebrating another successful ${category} project! ${businessName}${locationText} continues delivering ${keywordArray[0] || 'outstanding'} results for valued customers.`,
       
       // Future oriented
       `Building your future starts here! ${businessName}${locationText} provides ${keywordArray[0] || 'innovative'} ${category} solutions for ${keywordArray[1] || 'lasting'} success.`
@@ -270,10 +270,39 @@ export class OpenAIService {
     
     console.log(`📝 Using fallback template #${originalIndex + 1} (${availableTemplates.length}/${diverseTemplates.length} available)`);
     
+    // Enforce word limit on fallback content
+    const limitedContent = this.enforceWordLimit(selectedTemplate);
+    
     return {
-      content: selectedTemplate,
+      content: limitedContent,
       callToAction: this.getSmartButtonForCategory(category, businessName, websiteUrl)
     };
+  }
+
+  // Validate and enforce word count limit
+  private enforceWordLimit(content: string, maxWords: number = 80): string {
+    const words = content.trim().split(/\s+/);
+    if (words.length <= maxWords) {
+      return content;
+    }
+    
+    console.warn(`⚠️ Content exceeds ${maxWords} words (${words.length} words), truncating...`);
+    const truncated = words.slice(0, maxWords).join(' ');
+    
+    // Try to end on a complete sentence if possible
+    const lastSentenceEnd = truncated.lastIndexOf('.');
+    const lastExclamation = truncated.lastIndexOf('!');
+    const lastQuestion = truncated.lastIndexOf('?');
+    
+    const lastPunctuation = Math.max(lastSentenceEnd, lastExclamation, lastQuestion);
+    
+    // If we have a sentence ending within the last 10 characters, use that
+    if (lastPunctuation > truncated.length - 10) {
+      return truncated.substring(0, lastPunctuation + 1);
+    }
+    
+    // Otherwise, add ellipsis or appropriate ending
+    return truncated + (truncated.endsWith('.') || truncated.endsWith('!') || truncated.endsWith('?') ? '' : '...');
   }
 
   // Track recent posts to avoid repetition
@@ -343,34 +372,34 @@ export class OpenAIService {
     
     const promptVariations = [
       // Customer-focused angle
-      `Write an engaging post for ${businessName}${locationName ? ` in ${locationName}` : ''} that focuses on customer benefits. Business type: ${category}. Include these keywords naturally: ${keywordText}. Keep under 95 words, be conversational, and end with a call-to-action.`,
+      `Write an engaging post for ${businessName}${locationName ? ` in ${locationName}` : ''} that focuses on customer benefits. Business type: ${category}. Include these keywords naturally: ${keywordText}. Keep under 80 words, be conversational, and end with a call-to-action.`,
       
       // Service-focused angle
-      `Create a professional post highlighting ${businessName}'s expertise${locationName ? ` in ${locationName}` : ''}. Business category: ${category}. Naturally incorporate: ${keywordText}. Maximum 90 words, engaging tone, include call-to-action.`,
+      `Create a professional post highlighting ${businessName}'s expertise${locationName ? ` in ${locationName}` : ''}. Business category: ${category}. Naturally incorporate: ${keywordText}. Maximum 75 words, engaging tone, include call-to-action.`,
       
       // Problem-solution angle
-      `Write a post showing how ${businessName}${locationName ? ` in ${locationName}` : ''} solves customer problems. Category: ${category}. Use these keywords naturally: ${keywordText}. Under 95 words, conversational, end with action.`,
+      `Write a post showing how ${businessName}${locationName ? ` in ${locationName}` : ''} solves customer problems. Category: ${category}. Use these keywords naturally: ${keywordText}. Under 80 words, conversational, end with action.`,
       
       // Community-focused angle
-      `Create a community-focused post for ${businessName}${locationName ? ` serving ${locationName}` : ''}. Business type: ${category}. Include keywords: ${keywordText}. 90 words max, friendly tone, clear call-to-action.`,
+      `Create a community-focused post for ${businessName}${locationName ? ` serving ${locationName}` : ''}. Business type: ${category}. Include keywords: ${keywordText}. 75 words max, friendly tone, clear call-to-action.`,
       
       // Experience-focused angle
-      `Write about the experience customers get at ${businessName}${locationName ? ` in ${locationName}` : ''}. Category: ${category}. Include these terms: ${keywordText}. Keep to 95 words, engaging style, end with invitation.`,
+      `Write about the experience customers get at ${businessName}${locationName ? ` in ${locationName}` : ''}. Category: ${category}. Include these terms: ${keywordText}. Keep to 80 words, engaging style, end with invitation.`,
       
       // Quality-focused angle
-      `Highlight what makes ${businessName}${locationName ? ` in ${locationName}` : ''} stand out. Business: ${category}. Keywords to include: ${keywordText}. Maximum 90 words, professional yet warm, call-to-action needed.`,
+      `Highlight what makes ${businessName}${locationName ? ` in ${locationName}` : ''} stand out. Business: ${category}. Keywords to include: ${keywordText}. Maximum 75 words, professional yet warm, call-to-action needed.`,
       
       // Results-focused angle
-      `Create a results-oriented post for ${businessName}${locationName ? ` in ${locationName}` : ''}. Type: ${category}. Naturally use: ${keywordText}. Under 95 words, confident tone, strong call-to-action.`,
+      `Create a results-oriented post for ${businessName}${locationName ? ` in ${locationName}` : ''}. Type: ${category}. Naturally use: ${keywordText}. Under 80 words, confident tone, strong call-to-action.`,
       
       // Trust-building angle
-      `Write a trust-building post for ${businessName}${locationName ? ` in ${locationName}` : ''}. Category: ${category}. Include keywords: ${keywordText}. 90 words max, trustworthy tone, clear next step.`,
+      `Write a trust-building post for ${businessName}${locationName ? ` in ${locationName}` : ''}. Category: ${category}. Include keywords: ${keywordText}. 75 words max, trustworthy tone, clear next step.`,
       
       // Innovation-focused angle
-      `Show how ${businessName}${locationName ? ` in ${locationName}` : ''} brings fresh approaches. Business: ${category}. Keywords: ${keywordText}. Keep under 95 words, modern tone, compelling call-to-action.`,
+      `Show how ${businessName}${locationName ? ` in ${locationName}` : ''} brings fresh approaches. Business: ${category}. Keywords: ${keywordText}. Keep under 80 words, modern tone, compelling call-to-action.`,
       
       // Value-focused angle
-      `Emphasize the value ${businessName}${locationName ? ` in ${locationName}` : ''} provides. Type: ${category}. Use naturally: ${keywordText}. Maximum 90 words, value-driven, end with action.`
+      `Emphasize the value ${businessName}${locationName ? ` in ${locationName}` : ''} provides. Type: ${category}. Use naturally: ${keywordText}. Maximum 75 words, value-driven, end with action.`
     ];
     
     // Select prompt based on time and randomness for variety
@@ -399,14 +428,14 @@ export class OpenAIService {
           messages: [
             {
               role: 'system',
-              content: `You are a professional social media content creator specializing in Google Business Profile posts. Generate engaging, keyword-focused content under 95 words maximum. Always say "BusinessName in City" NOT "BusinessName City". Create unique, varied content that differs from typical business posts. Be creative and original.`
+              content: `You are a professional social media content creator specializing in Google Business Profile posts. Generate engaging, keyword-focused content under 80 words maximum. STRICT LIMIT: Never exceed 80 words. Always say "BusinessName in City" NOT "BusinessName City". Create unique, varied content that differs from typical business posts. Be creative and original. Count words carefully.`
             },
             {
               role: 'user',
               content: prompt
             }
           ],
-          max_tokens: 100,
+          max_tokens: 80, // Reduced to enforce 80-word limit
           temperature: 0.9, // Higher temperature for more creative variety
         }),
         signal: controller.signal,
@@ -448,9 +477,16 @@ export class OpenAIService {
       console.log('✅ Content generated successfully with Azure OpenAI');
       console.log('📝 Generated content:', content.substring(0, 100) + '...');
 
+      // Enforce word limit on AI-generated content
+      const limitedContent = this.enforceWordLimit(content);
+      
+      // Log word count for debugging
+      const wordCount = limitedContent.trim().split(/\s+/).length;
+      console.log(`📊 Final content word count: ${wordCount}/80 words`);
+
       // Return with smart button selection based on category
       return {
-        content,
+        content: limitedContent,
         callToAction: this.getSmartButtonForCategory(category, businessName, websiteUrl)
       };
 

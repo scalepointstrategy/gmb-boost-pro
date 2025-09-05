@@ -1,17 +1,28 @@
+import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 
 const DashboardLayout = () => {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-background">
       <div className="flex">
-        <Sidebar />
+        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         
-        <div className="flex-1 flex flex-col ml-64">
-          <Topbar />
+        {/* Mobile overlay */}
+        {sidebarOpen && (
+          <div 
+            className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+        
+        <div className="flex-1 flex flex-col ml-0 lg:ml-64">
+          <Topbar onMenuClick={() => setSidebarOpen(true)} />
           
-          <main className="flex-1 p-6 bg-muted/30">
+          <main className="flex-1 p-4 sm:p-6 bg-muted/30">
             <div className="animate-fade-in">
               <Outlet />
             </div>
